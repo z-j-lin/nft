@@ -7,13 +7,19 @@ import {
 } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import NavBar from './NavBar';
+//import detectEthereumProvier from "@metamask/detect-provider"
 
 class App extends Component {
 
+  async componentWillMount() {
+    await this.loadWeb3();
+    await this.loadBlockchainData();
+  }
+
   async loadWeb3() {
     if(window.ethereum){
-      window.web3 = new Web3(window.ethereum)
-      await window.ethereum.enable()
+      window.web3 = new Web3(window.ethereum);
+      await window.ethereum.enable();
     }
     else if (window.web3){
       window.web3 = new Web3(window.web3.currentProvider)
@@ -22,12 +28,25 @@ class App extends Component {
       window.alert('no ethereum browser detect, try installing metamask')
     }
   }
+  async loadBlockchainData() {
+    const web3 = window.web3;
+    //load account
+    const accounts = await web3.eth.getAccounts()
+    //this is the first account in the wallet
+    this.setState({account: accounts[0] })
+  }
+  constructor(props){
+    super(props)
+    this.state = {
+      account: ""
+    }
+  }
 
   render() {
     return (
       <Router>
         <div className="App">
-          <NavBar/>
+          <NavBar account = {this.state.account}/>
           <div id = "page-body">
             {/*homepage */}
             <Route path = "/hello" component={HomePage} exact/>
