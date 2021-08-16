@@ -49,7 +49,10 @@ class Login extends React.Component{
   render(){
     const web3 = this.state.web3
         
-    return(<></>);
+    return(
+    <>
+    </>
+    );
   }
   
   

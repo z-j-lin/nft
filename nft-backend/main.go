@@ -46,7 +46,7 @@ func EtherInit(rpcurl, contractAddress string) {
 	fmt.Println(publicKey)
 }
 func login(w http.ResponseWriter, r *http.Request) {
-	session
+
 }
 func main() {
 	const rpcurl = "HTTP://127.0.0.1:9545"

@@ -1,90 +1,108 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
-import {menu} from 'semantic-ui-react';
-
-class NavBar extends React.Component {
+import {Menu, Input} from 'semantic-ui-react';
+import Login from "./pages/Login"
+import Web3 from 'web3'
+import pkg from 'semantic-ui-react/package.json'
+class NavBar extends Component {
   constructor(props){
     super(props);
-    this.handleLoginClick = this.handleLoginClick.bind(this);
-    this.handleLoginClick = this.handleLogoutClick.bind(this);
     this.state = {
-      isLoggedIn: false
+      isLoggedIn: false,
+      web3: {},
+      accounts: []
     };
 
-  }
-  handleLoginClick(){
-    this.setState({isLoggedIn: true});
+  };
+
+  //function to login
+    async loginHandler() {
+    //run the login comp
+    await this.loadWeb3();
+    await this.loadBlockchainData();
+    this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(console.log)
+    console.log("after login instantiation")
   }
 
-  handleLogoutClick(){
-    this.setState({isLoggedIn:false});
+  async loadWeb3() {
+    if(window.ethereum){
+      window.web3 = new Web3(window.ethereum);
+      await window.ethereum.enable();
+    }
+    else if (window.web3){
+      window.web3 = new Web3(window.web3.currentProvider)
+    }
+    else{
+      window.alert('no ethereum browser detect, try installing metamask')
+    }
   }
-
+  
+  async  loadBlockchainData() {
+    const web3 = window.web3;
+    console.log(web3)
+    //load account
+    const accounts = await web3.eth.getAccounts()
+    this.setState({
+      web3: web3,
+      accounts: accounts
+    })  
+  }
+  
+  handleItemClick = (e, { name }) => {
+    this.setState({ activeItem: name })
+    console.log(name)
+    this.setState({ activeItem: "" })
+    //case statement for individual button functions
+    switch(name){
+      case "login":
+        this.loginHandler()
+        break
+      default:
+    }
+  }
   render() {
     const isLoggedIn = this.state.isLoggedIn;
-    /*
-    let loginButton;
+    const { activeItem } = this.state
+    
+    let nav;
     if(isLoggedIn){
-      mainButton = <loginButton onClick={this.handleLogoutClick}/>
+     nav =( 
+     <Menu secondary>
+        <Menu.Item
+          name='buy'
+          active={activeItem === 'home'}
+          onClick={this.handleItemClick}
+        />
+        <Menu.Item
+          name='owned'
+          active={activeItem === 'messages'}
+          onClick={this.handleItemClick}
+        />
+        <Menu.Menu position='right'>
+          <Menu.Item
+            name='logout'
+            active={activeItem === 'logout'}
+            onClick={this.handleItemClick}
+          />
+        </Menu.Menu>
+      </Menu>
+     )
     } else{
-      mainButton = <logoutButton onClick={this.handleLogoutClick}/>
-    }*/
+      nav = (
+      <Menu secondary>
+        <Menu.Item
+          name='login'
+          active={activeItem === 'login'}
+          onClick={this.handleItemClick}
+        />
+      </Menu>
+      )
+    }
     return(
       <div>
-        <div class="ui menu">
-          <div class="header item">
-            Our Company
-          </div>
-          <a class="item">
-            About Us
-          </a>
-          <a class="item">
-            Jobs
-          </a>
-          <a class="item">
-            Login
-          </a>
-        </div>
+      {nav}
       </div>
     );
   }
 }
-
-function UserGreeting(props) {
-  return <h1>Welcome back!</h1>;
-}
-
-function GuestGreeting(props) {
-  return <h1>Please sign up.</h1>;
-}
-
-function Greeting(props) {
-  const isLoggedIn = props.isLoggedIn;
-  if (isLoggedIn) {
-    return <UserGreeting />;
-  }
-  return <GuestGreeting />;
-}
-
-function LoginButton(props) {
-  return (
-    <button onClick={props.onClick}>
-      Login
-    </button>
-  );
-}
-
-function LogoutButton(props) {
-  return (
-    <button onClick={props.onClick}>
-      Logout
-    </button>
-  );
-}
-
-ReactDOM.render(
-  <NavBar />,
-  document.getElementById('root')
-);
- 
 export default NavBar; 
