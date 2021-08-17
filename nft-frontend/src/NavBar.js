@@ -89,12 +89,15 @@ class NavBar extends Component {
      )
     } else{
       nav = (
-      <Menu secondary>
-        <Menu.Item
+      <Menu widths={1}>
+        <Menu.Menu position ='middle'>
+        <Menu.Item 
           name='login'
           active={activeItem === 'login'}
           onClick={this.handleItemClick}
         />
+        </Menu.Menu>
+        
       </Menu>
       )
     }
