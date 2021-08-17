@@ -1,19 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gorilla/sessions"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 //verfication for metamask login message
+/*
 func verification(publicKeyECDSA string, data, signature byte) bool {
 	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(publicKeyECDSA))
 	hash := crypto.keccak256Hash(data)
@@ -24,6 +26,15 @@ func verification(publicKeyECDSA string, data, signature byte) bool {
 	}
 	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
 	return true
+}
+*/
+var (
+	key   = []byte("mulva")
+	store = sessions.NewCookieStore(key)
+)
+
+type loginR struct {
+	isLoggedIn bool
 }
 
 func EtherInit(rpcurl, contractAddress string) {
@@ -46,8 +57,22 @@ func EtherInit(rpcurl, contractAddress string) {
 	fmt.Println(publicKey)
 }
 func login(w http.ResponseWriter, r *http.Request) {
-	session
+	session, _ := store.Get(r, "cookie-name")
+
+	rData := loginR{
+		isLoggedIn: true,
+	}
+	session.Values["authenticated"] = true
+	w.Header().Set("Content-Type", "application/json")
+
+	Data, err := json.Marshal(rData)
+	if err != nil {
+		log.Fatalf("JSON problem server side: %v", err)
+	}
+	w.Write(Data)
+	session.Save(r, w)
 }
+
 func main() {
 	const rpcurl = "HTTP://127.0.0.1:9545"
 	const contractAddress = "0x097063E71919E1C4af55F6468DF5295C76993bFb"
