@@ -5,7 +5,6 @@ import {
   BrowserRouter as Router,
   Route,
 } from 'react-router-dom';
-import Login from './pages/Login';
 import NavBar from './NavBar';
 //import detectEthereumProvier from "@metamask/detect-provider"
 import {Container} from 'semantic-ui-react';
@@ -17,7 +16,7 @@ const App = () => (
           <NavBar/>
         <div id = "page-body">
           {/*homepage */}
-          <Route path = "/Login" component={Login} exact/>
+
         </div>
       </div>
     </Router>
