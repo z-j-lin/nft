@@ -19,10 +19,11 @@ class NavBar extends Component {
     //run the login comp
     await this.loadWeb3();
     await this.loadBlockchainData();
+    const account = this.state.accounts[0]
     this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(
       signature =>{
       console.log("after login instantiation")
-      const data = {signature, this.state.accounts[0]}
+      const data = {signature, account}
       const options = {
         method: 'POST',
         headers: {
@@ -31,7 +32,7 @@ class NavBar extends Component {
         body: JSON.stringify(data)
       };
 
-    fetch('/login', options).then( response => {
+    fetch(':8080/login', options).then( response => {
       console.log(response)
       //change isLoggedIn variable
 
