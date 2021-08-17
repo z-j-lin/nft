@@ -1,22 +1,16 @@
 import React from 'react';
 import Web3 from 'web3'
-
-class Login {
-
+import { Container, Form, Grid, Header, Message, Button } from 'semantic-ui-react';
+class Login extends React.Component{
+ 
   constructor(props){
-    super(props)
+    super(props);
+    this.state = {
+      account: "",
+      web3: {}
+    }
   }
-  
-  client = {
-    web3Provider: null,
-    contracts: {},
-    account: '0x0',
-    loading: false,
-    contractInstance: null,
-    msg: '0x0',
-    signature: '0x0',
-  
-
+  //hook to trigger functions before page renders
   async componentWillMount() {
     await this.loadWeb3();
     await this.loadBlockchainData();
@@ -38,17 +32,30 @@ class Login {
 
   async loadBlockchainData() {
     const web3 = window.web3;
+    console.log(web3)
     //load account
     const accounts = await web3.eth.getAccounts()
+    console.log(accounts)
+    await web3.eth.personal.sign("hello", accounts[0]).then(console.log)
     //this is the first account in the wallet
-    this.setState({account: accounts[0] })
+    this.setState({account: accounts[0],
+      web3: web3    
+    })
   }
 
-  render(){
-    return(
 
-    )
+
+
+  render(){
+    const web3 = this.state.web3
+        
+    return(
+    <>
+    </>
+    );
   }
   
   
 }
+
+export default Login;
