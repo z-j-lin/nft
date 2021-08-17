@@ -45,6 +45,8 @@ func EtherInit(rpcurl, contractAddress string) {
 	publicKey := privateKey.Public()
 	fmt.Println(publicKey)
 }
+
+//takes the address
 func login(w http.ResponseWriter, r *http.Request) {
 
 }

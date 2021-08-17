@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import {Menu, Input} from 'semantic-ui-react';
-import Login from "./pages/Login"
 import Web3 from 'web3'
 import pkg from 'semantic-ui-react/package.json'
 class NavBar extends Component {
@@ -20,8 +19,26 @@ class NavBar extends Component {
     //run the login comp
     await this.loadWeb3();
     await this.loadBlockchainData();
-    this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(console.log)
-    console.log("after login instantiation")
+    this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(
+      signature =>{
+      console.log("after login instantiation")
+      const data = {signature, this.state.accounts[0]}
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      };
+
+    fetch('/login', options).then( response => {
+      console.log(response)
+      //change isLoggedIn variable
+
+    });
+
+    })
+    
   }
 
   async loadWeb3() {
