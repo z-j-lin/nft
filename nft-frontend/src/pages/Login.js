@@ -42,19 +42,6 @@ class Login extends React.Component{
       web3: web3    
     })
   }
-
-
-
-
-  render(){
-    const web3 = this.state.web3
-        
-    return(
-    <>
-    </>
-    );
-  }
-  
   
 }
 

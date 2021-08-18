@@ -32,7 +32,7 @@ class NavBar extends Component {
         body: JSON.stringify(data)
       };
 
-    fetch(':8080/login', options).then( response => {
+    fetch('http://localhost:8080/login', options).then( response => {
       console.log(response)
       //change isLoggedIn variable
 
