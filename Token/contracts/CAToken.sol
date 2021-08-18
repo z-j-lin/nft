@@ -12,7 +12,6 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     //might not need this
     bytes32 public constant SERVER_ROLE = keccak256("SERVER_ROLE");
     //use counters to make unique tokenID
-
     Counters.Counter private _tokenIdTracker;
 
     constructor(

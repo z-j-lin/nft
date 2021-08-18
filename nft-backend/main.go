@@ -39,7 +39,7 @@ type loginRes struct {
 
 func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
-	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(account))
+	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECDSA(account))
 	//taking signed message and converting it from string to byte
 	signedMessage := []byte(signature)
 	//convert data into byte array
