@@ -27,17 +27,19 @@ var (
 	data string
 	publicKeyECDSA string
 */
-type loginR struct {
+type loginReq struct {
 	//indicator to see if the account is logged in
-	isloggedin     bool
-	signature      string
-	data           string
-	publicKeyECDSA string
+	signature string
+	data      string
+	account   string
+}
+type loginRes struct {
+	isloggedin bool
 }
 
-func verify(publicKeyECDSA string, data string, signature string) bool {
+func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
-	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(publicKeyECDSA))
+	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(account))
 	//taking signed message and converting it from string to byte
 	signedMessage := []byte(signature)
 	//convert data into byte array
@@ -46,10 +48,11 @@ func verify(publicKeyECDSA string, data string, signature string) bool {
 	hash := crypto.keccak256Hash(databyte)
 	//extract the public key from the message
 	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signedMessage)
-	if err {
+	if err != nil {
 		log.Fatalf("unable to verify wallet")
 		return false
 	}
+	fmt.Println("the recovered key:", sigPublicKey)
 	//check if it matches
 	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
 	if matches {
@@ -84,33 +87,32 @@ func logout(w http.ResponseWriter, req *http.Request) {
 
 	//revoke permission
 	session.Values["authenticated"] = false
-	session.save(req, w)
+	session.Save(req, w)
 }
 
 //assigns a session ID
 func login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methpds", "POST")
 	//container for the login json data
-	var loginreq loginR
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&loginreq)
+	var loginreq loginReq
+	err := json.NewDecoder(r.Body).Decode(&loginreq)
 	if err != nil {
 		log.Fatalf("unable to decode")
 	}
 	//gets a cookie
 	session, _ := store.Get(r, "cookie-name")
 	//authenticate
-	if verify(loginreq.publicKeyECDSA, loginreq.data, loginreq.signature) {
+	if verify(loginreq.account, loginreq.data, loginreq.signature) {
 		//if verification is true let user in
 		session.Values["authenticated"] = true
-		w.Header().Set("Content-Type", "application/json")
-
-		Data, err := json.Marshal(rData)
-		if err != nil {
-			log.Fatalf("JSON problem server side: %v", err)
-		}
 		session.Save(r, w)
+		//send back login acknoledgment
+		var loginres loginRes
+		loginres.isloggedin = true
+		json.NewEncoder(w).Encode(&loginres)
 	}
-	w.Write(Data)
 
 }
 
@@ -118,6 +120,8 @@ func main() {
 	const rpcurl = "HTTP://127.0.0.1:9545"
 	const contractAddress = "0x097063E71919E1C4af55F6468DF5295C76993bFb"
 	http.HandleFunc("/login", login)
-
+	http.HandleFunc("/logout", logout)
+	http.HandleFunc("/buy", login)
+	http.HandleFunc("/load", login)
 	http.ListenAndServe(":8080", nil)
 }
