@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,26 +16,47 @@ import (
 )
 
 //verfication for metamask login message
-/*
-func verification(publicKeyECDSA string, data, signature byte) bool {
-	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(publicKeyECDSA))
-	hash := crypto.keccak256Hash(data)
-	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
-	if err {
-		log.Fatalf("unable to verify wallet")
-		return false
-	}
-	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
-	return true
-}
-*/
 var (
 	key   = []byte("mulva")
 	store = sessions.NewCookieStore(key)
 )
 
+/*
+	isloggedin bool
+	signature string
+	data string
+	publicKeyECDSA string
+*/
 type loginR struct {
-	isLoggedIn bool
+	//indicator to see if the account is logged in
+	isloggedin     bool
+	signature      string
+	data           string
+	publicKeyECDSA string
+}
+
+func verify(publicKeyECDSA string, data string, signature string) bool {
+	//converting the pubkey from hex string to byte
+	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECSDA(publicKeyECDSA))
+	//taking signed message and converting it from string to byte
+	signedMessage := []byte(signature)
+	//convert data into byte array
+	databyte := []byte(data)
+	//hash original data
+	hash := crypto.keccak256Hash(databyte)
+	//extract the public key from the message
+	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signedMessage)
+	if err {
+		log.Fatalf("unable to verify wallet")
+		return false
+	}
+	//check if it matches
+	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
+	if matches {
+		return true
+	} else {
+		return false
+	}
 }
 
 func EtherInit(rpcurl, contractAddress string) {
@@ -56,21 +78,40 @@ func EtherInit(rpcurl, contractAddress string) {
 	publicKey := privateKey.Public()
 	fmt.Println(publicKey)
 }
+
+func logout(w http.ResponseWriter, req *http.Request) {
+	session, _ := store.Get(req, "cookie-name")
+
+	//revoke permission
+	session.Values["authenticated"] = false
+	session.save(req, w)
+}
+
+//assigns a session ID
 func login(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "cookie-name")
-
-	rData := loginR{
-		isLoggedIn: true,
-	}
-	session.Values["authenticated"] = true
-	w.Header().Set("Content-Type", "application/json")
-
-	Data, err := json.Marshal(rData)
+	//container for the login json data
+	var loginreq loginR
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&loginreq)
 	if err != nil {
-		log.Fatalf("JSON problem server side: %v", err)
+		log.Fatalf("unable to decode")
+	}
+	//gets a cookie
+	session, _ := store.Get(r, "cookie-name")
+	//authenticate
+	if verify(loginreq.publicKeyECDSA, loginreq.data, loginreq.signature) {
+		//if verification is true let user in
+		session.Values["authenticated"] = true
+		w.Header().Set("Content-Type", "application/json")
+
+		Data, err := json.Marshal(rData)
+		if err != nil {
+			log.Fatalf("JSON problem server side: %v", err)
+		}
+		session.Save(r, w)
 	}
 	w.Write(Data)
-	session.Save(r, w)
+
 }
 
 func main() {
