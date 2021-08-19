@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-//verfication for metamask login message
 var (
 	key   = []byte("mulva")
 	store = sessions.NewCookieStore(key)
@@ -34,6 +33,13 @@ type loginReq struct {
 type loginRes struct {
 	isloggedin bool
 }
+
+//create a queue for sending transactions
+//need to monitor if transactions go through
+
+//handler function for buying a token
+
+//verfication for metamask login message
 
 func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
@@ -121,7 +127,7 @@ func main() {
 	const contractAddress = "0x097063E71919E1C4af55F6468DF5295C76993bFb"
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/logout", logout)
-	http.HandleFunc("/buy", login)
-	http.HandleFunc("/load", login)
+	http.HandleFunc("/buy", BuyToken)
+	http.HandleFunc("/load", LoadAccessTokens)
 	http.ListenAndServe(":8080", nil)
 }
