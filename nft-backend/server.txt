@@ -1,0 +1,21 @@
+buying access token
+user goes on frontend and logs in with meta mask 
+
+buy page 
+
+client buys image sends request to server with signed message
+server verifies signed message 
+sends transaction to mint token and returns the tokenID 
+server logs a tokenID to server  
+
+view page 
+client clicks on button of resource: sends request with signed message 
+server varifies signed message and sends the image to the client 
+
+
+minting process
+user hits button which sends a request to backend with a signed message 
+of tokenID 
+
+backend extracts token id and address from signed message 
+then serves image to client.

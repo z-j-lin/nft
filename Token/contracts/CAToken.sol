@@ -1,10 +1,11 @@
-pragma solidity 0.8.6;
+//SPDX-License-Identifier: none
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
+import "../node_modules/@openzeppelin/contracts/utils/Counters.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
 contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     using Counters for Counters.Counter;
@@ -12,7 +13,6 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     //might not need this
     bytes32 public constant SERVER_ROLE = keccak256("SERVER_ROLE");
     //use counters to make unique tokenID
-
     Counters.Counter private _tokenIdTracker;
 
     constructor(
@@ -27,20 +27,22 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
         //lets give owner server role too
         _setupRole(SERVER_ROLE, _msgSender());
     }
+    //mint event to be emitted in the mint function 
+    event Minted(address indexed _from, uint256 indexed tokenID);
 
     function mint(address _to) public {
-        //
         require(
             hasRole(SERVER_ROLE, _msgSender()),
             "you don't have access to the minting function"
         );
         //require unique tokenID
         _mint(_to, _tokenIdTracker.current());
+        //emit information about the token
+        emit Minted (_to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
     }
 
     //delete expired contracts
-    //
     function expiredContracts(uint256[] memory deleteIds) public {
         //only allow the server to do this
         require(

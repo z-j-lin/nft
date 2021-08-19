@@ -1,42 +1,38 @@
 import React, {Component} from 'react';
+import ReactDOM from "react-dom";
 import Web3 from 'web3'
-import './App.css';
 import {
   BrowserRouter as Router,
   Route,
 } from 'react-router-dom';
-import HomePage from './pages/HomePage';
 import NavBar from './NavBar';
+//import detectEthereumProvier from "@metamask/detect-provider"
+import {Container} from 'semantic-ui-react';
 
-class App extends Component {
-
-  async loadWeb3() {
-    if(window.ethereum){
-      window.web3 = new Web3(window.ethereum)
-      await window.ethereum.enable()
-    }
-    else if (window.web3){
-      window.web3 = new Web3(window.web3.currentProvider)
-    }
-    else{
-      window.alert('no ethereum browser detect, try installing metamask')
-    }
-  }
-
-  render() {
-    return (
-      <Router>
-        <div className="App">
+const App = () => (
+  <Container>
+    <Router>
+      <div className="App">
           <NavBar/>
-          <div id = "page-body">
-            {/*homepage */}
-            <Route path = "/hello" component={HomePage} exact/>
-          </div>
-        </div>
-      </Router>
-      
-    );
-  }
-}
+        <div id = "page-body">
+          {/*homepage */}
 
+        </div>
+      </div>
+    </Router>
+  </Container>
+
+);
+  
+const styleLink = document.createElement("link");
+styleLink.rel = "stylesheet";
+styleLink.href = "https://cdn.jsdelivr.net/npm/semantic-ui/dist/semantic.min.css";
+document.head.appendChild(styleLink); 
+
+ReactDOM.render( 
+  <App>
+    <NavBar />
+  </App>,
+  document.getElementById("root")
+);
 export default App;
