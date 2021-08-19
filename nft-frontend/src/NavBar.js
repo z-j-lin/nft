@@ -24,6 +24,7 @@ class NavBar extends Component {
       signature =>{
       console.log("after login instantiation")
       const data = {signature, account}
+      console.log(JSON.stringify(data))
       const options = {
         method: 'POST',
         headers: {
@@ -85,7 +86,7 @@ class NavBar extends Component {
     let nav;
     if(isLoggedIn){
      nav =( 
-     <Menu secondary>
+     <Menu >
         <Menu.Item
           name='buy'
           active={activeItem === 'home'}
@@ -108,7 +109,7 @@ class NavBar extends Component {
     } else{
       nav = (
       <Menu widths={1}>
-        <Menu.Menu position ='middle'>
+        <Menu.Menu >
         <Menu.Item 
           name='login'
           active={activeItem === 'login'}

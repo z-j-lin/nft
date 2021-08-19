@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -29,9 +28,8 @@ var (
 */
 type loginReq struct {
 	//indicator to see if the account is logged in
-	signature string
-	data      string
-	account   string
+	Signature string `json: "signature"`
+	Account   string `json: "account`
 }
 type loginRes struct {
 	isloggedin bool
@@ -39,13 +37,12 @@ type loginRes struct {
 
 func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
-	publicKeyBytes := crypto.FromECDSAPub(crypto.HexToECDSA(account))
 	//taking signed message and converting it from string to byte
 	signedMessage := []byte(signature)
 	//convert data into byte array
 	databyte := []byte(data)
 	//hash original data
-	hash := crypto.keccak256Hash(databyte)
+	hash := crypto.Keccak256Hash(databyte)
 	//extract the public key from the message
 	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signedMessage)
 	if err != nil {
@@ -54,12 +51,13 @@ func verify(account string, data string, signature string) bool {
 	}
 	fmt.Println("the recovered key:", sigPublicKey)
 	//check if it matches
-	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
-	if matches {
+	//matches := bytes.Equal(sigPublicKey, publicKeyBytes)
+	/*if matches {
 		return true
 	} else {
 		return false
-	}
+	}*/
+	return false
 }
 
 func EtherInit(rpcurl, contractAddress string) {
@@ -94,17 +92,19 @@ func logout(w http.ResponseWriter, req *http.Request) {
 func login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methpds", "POST")
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	//container for the login json data
-	var loginreq loginReq
-	err := json.NewDecoder(r.Body).Decode(&loginreq)
+	var lr loginReq
+
+	err := json.NewDecoder(r.Body).Decode(&lr)
+	fmt.Printf("%+v\n", lr)
 	if err != nil {
-		log.Fatalf("unable to decode")
+		log.Fatalf("unable to decode biatch %v", err)
 	}
 	//gets a cookie
 	session, _ := store.Get(r, "cookie-name")
 	//authenticate
-	if verify(loginreq.account, loginreq.data, loginreq.signature) {
+	if verify(lr.Account, "hello", lr.Signature) {
 		//if verification is true let user in
 		session.Values["authenticated"] = true
 		session.Save(r, w)
