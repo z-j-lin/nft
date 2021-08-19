@@ -7,11 +7,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gorilla/sessions"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 )
 
 var (
@@ -34,13 +34,16 @@ type loginRes struct {
 	isloggedin bool
 }
 
+//create a map that mapps sessionIDs to etheraddress
 //create a queue for sending transactions
 //need to monitor if transactions go through
 
 //handler function for buying a token
+func BuyToken(w http.ResponseWriter, r *http.Request) {
+
+}
 
 //verfication for metamask login message
-
 func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
 	//taking signed message and converting it from string to byte
@@ -101,12 +104,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	//container for the login json data
 	var lr loginReq
-
 	err := json.NewDecoder(r.Body).Decode(&lr)
 	fmt.Printf("%+v\n", lr)
 	if err != nil {
 		log.Fatalf("unable to decode biatch %v", err)
 	}
+
 	//gets a cookie
 	session, _ := store.Get(r, "cookie-name")
 	//authenticate
@@ -125,9 +128,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 func main() {
 	const rpcurl = "HTTP://127.0.0.1:9545"
 	const contractAddress = "0x097063E71919E1C4af55F6468DF5295C76993bFb"
+	router := mux.NewRouter()
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/logout", logout)
 	http.HandleFunc("/buy", BuyToken)
+	//sends back an array resources owned by address
 	http.HandleFunc("/load", LoadAccessTokens)
+	http.HandleFunc("request/{resourceID}", fetchResource).Method.Get
 	http.ListenAndServe(":8080", nil)
 }
