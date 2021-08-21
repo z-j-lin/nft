@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -27,12 +31,22 @@ var (
 */
 type loginReq struct {
 	//indicator to see if the account is logged in
-	Signature string `json: "signature"`
-	Account   string `json: "account`
+	SignedMessage string `json: "signedmessage"`
+	AccountAddr   string `json: "accountaddr`
 }
 type loginRes struct {
 	isloggedin bool
 }
+
+//struct to hold information about each token
+type TokenRegistry struct {
+	TokenID   uint
+	Account   string
+	StartTime time.Time
+	EndTime   time.Time
+}
+
+//slice to hold information about all tokens
 
 //create a map that mapps sessionIDs to etheraddress
 //create a queue for sending transactions
@@ -40,24 +54,64 @@ type loginRes struct {
 
 //handler function for buying a token
 func BuyToken(w http.ResponseWriter, r *http.Request) {
+	//verify user credential
+	//if user is verfied pull out transaction information
+	//run buildtransaction with inforrmation
+	//add transaction to the queue
+}
+
+func BuildTransactionMint() {
+}
+func SendTransactionMint() {
 
 }
+
+func VerifyTransactionMint() {
+}
+
+//sends the client a list of tokens owned by the address and associated resource ID
+func LoadAccessTokens(w http.ResponseWriter, r *http.Request) {
+	//decode request body
+	//extract session ID, user account
+
+	//encode new body, sends back array tokens
+}
+
+func fetchResource(w http.ResponseWriter, r *http.Request) {
+
+}
+
+//cleanup function needs to be ran as a go routine
 
 //verfication for metamask login message
 func verify(account string, data string, signature string) bool {
 	//converting the pubkey from hex string to byte
 	//taking signed message and converting it from string to byte
-	signedMessage := []byte(signature)
+	signedMessage, err := hex.DecodeString(signature[2:])
+	if err != nil {
+		panic(err)
+	}
+
+	AccountAddr, err := hex.DecodeString(account[2:])
+	if err != nil {
+		panic(err)
+	}
+	validationMsg := "\x19Ethereum Signed Message:\n" + strconv.Itoa(len(data)) + data
 	//convert data into byte array
-	databyte := []byte(data)
+	databyte := []byte(validationMsg)
 	//hash original data
 	hash := crypto.Keccak256Hash(databyte)
 	//extract the public key from the message
+
 	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signedMessage)
+	fmt.Println(AccountAddr, sigPublicKey)
+	fmt.Println("the recovered key:", sigPublicKey)
+
 	if err != nil {
-		log.Fatalf("unable to verify wallet")
+		log.Fatalf("unable to verify wallet: %v %v, signature: %x", err, len(signature), signedMessage)
 		return false
 	}
+
 	fmt.Println("the recovered key:", sigPublicKey)
 	//check if it matches
 	//matches := bytes.Equal(sigPublicKey, publicKeyBytes)
@@ -97,15 +151,15 @@ func logout(w http.ResponseWriter, req *http.Request) {
 	session.Save(req, w)
 }
 
-//assigns a session ID
+//handler for login
 func login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	//container for the login json data
 	var lr loginReq
+	fmt.Println(1)
 	err := json.NewDecoder(r.Body).Decode(&lr)
-	fmt.Printf("%+v\n", lr)
 	if err != nil {
 		log.Fatalf("unable to decode biatch %v", err)
 	}
@@ -113,7 +167,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	//gets a cookie
 	session, _ := store.Get(r, "cookie-name")
 	//authenticate
-	if verify(lr.Account, "hello", lr.Signature) {
+	if verify(lr.AccountAddr, "hello", lr.SignedMessage) {
 		//if verification is true let user in
 		session.Values["authenticated"] = true
 		session.Save(r, w)
@@ -126,14 +180,25 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	var dir string
+	flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
 	const rpcurl = "HTTP://127.0.0.1:9545"
-	const contractAddress = "0x097063E71919E1C4af55F6468DF5295C76993bFb"
+	//contractAddress := "0x097063E71919E1C4af55F6468DF5295C76993bFb"
 	router := mux.NewRouter()
-	http.HandleFunc("/login", login)
-	http.HandleFunc("/logout", logout)
-	http.HandleFunc("/buy", BuyToken)
+	router.HandleFunc("/login", login).Methods("POST")
+	router.HandleFunc("/logout", logout).Methods("POST")
+	router.HandleFunc("/buy", BuyToken).Methods("POST")
 	//sends back an array resources owned by address
-	http.HandleFunc("/load", LoadAccessTokens)
-	http.HandleFunc("request/{resourceID}", fetchResource).Method.Get
-	http.ListenAndServe(":8080", nil)
+	router.HandleFunc("/load", LoadAccessTokens).Methods("GET")
+	router.HandleFunc("request/{resourceID}", fetchResource).Methods("GET")
+	http.Handle("/", router)
+
+	server := &http.Server{
+		Handler:      router,
+		Addr:         "127.0.0.1:8080",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
+
 }
