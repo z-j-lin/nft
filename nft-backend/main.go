@@ -85,37 +85,55 @@ func fetchResource(w http.ResponseWriter, r *http.Request) {
 
 //verfication for metamask login message
 func verify(account string, data string, signature string) bool {
+	/*
+			   PUT DATA HERE
+					{
+		    "signedmessage": "0x58c268c7e3fdf11e13fe9e05f612e4d44b28a333a55630c551e04aef633f6d2825b790163f98632a66a6745d9ed8f0430785f3a7d997e28b595ce388018ce01f1c",
+		    "accountaddr" : "0x28cB37028ECE65435480565c7f71f8a372bb655d"
+		}
+	*/
+	fmt.Println(data)
 	//converting the pubkey from hex string to byte
 	//taking signed message and converting it from string to byte
 	signedMessage, err := hex.DecodeString(signature[2:])
 	if err != nil {
 		panic(err)
 	}
-
+	signedMessage[64] -= 27
 	AccountAddr, err := hex.DecodeString(account[2:])
+	fmt.Println("string decoded AccAddr[2:]: ", hex.EncodeToString(AccountAddr))
 	if err != nil {
 		panic(err)
 	}
 	validationMsg := "\x19Ethereum Signed Message:\n" + strconv.Itoa(len(data)) + data
 	//convert data into byte array
+
 	databyte := []byte(validationMsg)
 	//hash original data
 	hash := crypto.Keccak256Hash(databyte)
 	//extract the public key from the message
 
 	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signedMessage)
-	fmt.Println(AccountAddr, sigPublicKey)
-	fmt.Println("the recovered key:", sigPublicKey)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sigPubkey:", sigPublicKey)
+	fmt.Println("accoutnaddr:", AccountAddr)
+	pubKey, err := crypto.UnmarshalPubkey(sigPublicKey)
+	if err != nil {
+		panic(err)
+	}
+	recoveredAddr := crypto.PubkeyToAddress(*pubKey)
 
+	fmt.Println("the recovered address:", recoveredAddr)
+	fmt.Println("the address:", account)
 	if err != nil {
 		log.Fatalf("unable to verify wallet: %v %v, signature: %x", err, len(signature), signedMessage)
 		return false
 	}
-
-	fmt.Println("the recovered key:", sigPublicKey)
-	//check if it matches
-	//matches := bytes.Equal(sigPublicKey, publicKeyBytes)
-	/*if matches {
+	//check if the recovered address matches the actual address
+	/*matches := bytes.Equal(sigPublicKey, publicKeyBytes)
+	if matches {
 		return true
 	} else {
 		return false
@@ -180,6 +198,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	signedmessage := "0x58c268c7e3fdf11e13fe9e05f612e4d44b28a333a55630c551e04aef633f6d2825b790163f98632a66a6745d9ed8f0430785f3a7d997e28b595ce388018ce01f1c"
+	accountaddr := "0x28cB37028ECE65435480565c7f71f8a372bb655d"
+	if ok := verify(accountaddr, "hello", signedmessage); !ok {
+		panic("not verified")
+	}
+	return
+	//TODO: ZJ REMOVE ABOVE THIS LINE
 	var dir string
 	flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
 	const rpcurl = "HTTP://127.0.0.1:9545"
