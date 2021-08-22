@@ -14,6 +14,10 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     bytes32 public constant SERVER_ROLE = keccak256("SERVER_ROLE");
     //use counters to make unique tokenID
     Counters.Counter private _tokenIdTracker;
+    //mint event to be emitted in the mint function 
+    event Minted(address indexed _from, uint256 indexed tokenID);
+    //event to tell server the tokens are deleted 
+    event DeletedTokens(uint256[] indexed deleteIds);
 
     constructor(
         string memory name,
@@ -27,9 +31,7 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
         //lets give owner server role too
         _setupRole(SERVER_ROLE, _msgSender());
     }
-    //mint event to be emitted in the mint function 
-    event Minted(address indexed _from, uint256 indexed tokenID);
-
+    
     function mint(address _to) public {
         require(
             hasRole(SERVER_ROLE, _msgSender()),
@@ -53,7 +55,7 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
         for (uint256 i = 0; i <= deleteIds.length; i++) {
             _burn(deleteIds[i]);
         }
-        //should I deleteIds?
+        emit DeletedTokens(deleteIds); 
     }
 
     function selfDedstruct() public onlyOwner {

@@ -15,30 +15,31 @@ class NavBar extends Component {
   };
 
   //function to login
-    async loginHandler() {
+  async loginHandler() {
     //run the login comp
     await this.loadWeb3();
     await this.loadBlockchainData();
     const account = this.state.accounts[0]
+    var data
     this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(
       signature =>{
       console.log("after login instantiation")
-      const data = {signature, account}
-      console.log(JSON.stringify(data))
+      data = {"signature": signature, "account": account}
+      console.log(data)
       const options = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
+          'Connection': 'keep-alive',
         },
+        credentials: 'include',
         body: JSON.stringify(data)
       };
-
-    fetch('http://localhost:8080/login', options).then( response => {
-      console.log(response)
-      //change isLoggedIn variable
-
-    });
-
+      fetch('http://127.0.0.1:8080/login', options).then( response => {
+        console.log(response)
+        //change isLoggedIn variable
+      });  
     })
     
   }
