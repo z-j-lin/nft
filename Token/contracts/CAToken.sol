@@ -1,11 +1,11 @@
 //SPDX-License-Identifier: none
 pragma solidity ^0.8.0;
 
-import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
-import "../node_modules/@openzeppelin/contracts/utils/Counters.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "../node_modules/@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "./contracts/token/ERC721/ERC721.sol";
+import "./contracts/access/Ownable.sol";
+import "./contracts/utils/Counters.sol";
+import "./contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "./contracts/access/AccessControlEnumerable.sol";
 
 contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     using Counters for Counters.Counter;
