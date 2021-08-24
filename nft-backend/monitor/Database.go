@@ -30,8 +30,8 @@ func NewDB(address string) (*Database, error) {
 }
 
 //add to transaction queue
-func (DB *Database) qTrans(resource, address string) error {
-
+func (DB *Database) qTrans(resourceID, address string) error {
+	DB.client.
 }
 //take off the transaction queue
 func (DB *Database) DQTrans() error {
@@ -42,4 +42,4 @@ func (DB *Database) qVerifie(tokenID, Resource, Address, Hash) error {
 
 }
 //take off the verification queue 
-func (DB *) dqVerifie()
+func (DB *Database) dqVerifie()
