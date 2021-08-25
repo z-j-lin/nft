@@ -96,6 +96,7 @@ func (tx *Transaction) getTxParams() {
 	auth.GasPrice = gasPrice
 }
 
+/*
 func (Tx *Transaction) MintNew() {
 	CAToken := Tx.con.CAToken
 	auth := Tx.Acc.auth
@@ -103,7 +104,8 @@ func (Tx *Transaction) MintNew() {
 	Tx.getTxParams()
 	//sends the transcation
 	//tx used for tracking the transcation detail
-	transX, err := CAToken.Mint(auth, to)
+	//transX, err := CAToken.Mint(auth, to)
 
 	//add tx info on db list for tracking
 }
+*/
