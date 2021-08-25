@@ -3,6 +3,7 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -14,48 +15,95 @@ import (
 )
 
 type Contract struct {
-	client          *ethclient.Client
-	rpcurl          string
-	contractAddress string
+	client  *ethclient.Client
+	ConAddr string
+	CAToken *CAToken.CAToken
 }
 
-func (c *Contract) LoadContract(string) {
-	client, err := ethclient.Dial(c.rpcurl)
+func initContract(rpcurl, contractAddress string) (*Contract, error) {
+	conn, err := ethclient.Dial(rpcurl)
 	if err != nil {
-		log.Fatalf("Failed to connect to the ether network: %v", err)
+		return nil, fmt.Errorf("Failed to connect to the ether network: %v", err)
 	}
-	c.client = client
-	address := common.HexToAddress(c.contractAddress)
-	ct, err := CAToken.NewCAToken(address, c.client)
+
+	address := common.HexToAddress(contractAddress)
+	CAToken, err := CAToken.NewCAToken(address, conn)
 	if err != nil {
-		log.Fatalf("error loading contract %v", err)
+		return nil, fmt.Errorf("error loading contract %v", err)
 	}
+	return &Contract{
+		client:  conn,
+		ConAddr: contractAddress,
+		CAToken: CAToken,
+	}, nil
 }
 
-//prepares a mint transaction
-func (c *Contract) BuildTransactionMint(pk string) {
-	privateKey, err := crypto.HexToECDSA(pk)
+type ServerAcc struct {
+	auth          *bind.TransactOpts
+	WalletAddress common.Address
+}
+
+func NewAcc() *ServerAcc {
+	//import private key here
+	privateKey, err := crypto.HexToECDSA(privatekey)
 	if err != nil {
 		log.Fatalf("private key Hex2ECDSA error %v", err)
 	}
 	publicKey := privateKey.Public()
+	//store this in a struct
+	authentication := bind.NewKeyedTransactor(privateKey)
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
 		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 	}
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := c.client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		log.Fatalf("error getting nonce %v", err)
+	serverWalletAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	return &ServerAcc{
+		auth:          authentication,
+		WalletAddress: serverWalletAddress,
 	}
-	gasPrice, err := c.client.SuggestGasPrice(context.Background())
-	if err != nil {
-		log.Fatalf("error on suggest gas price %v", err)
+}
+
+type Transaction struct {
+	con Contract
+	to  common.Address
+	Acc ServerAcc
+}
+
+func newTrans(to string, Con Contract, Acc ServerAcc) Transaction {
+	recipientAddr := common.HexToAddress(to)
+	return Transaction{
+		con: Con,
+		to:  recipientAddr,
+		Acc: Acc,
 	}
-	auth := bind.NewKeyedTransactor(privateKey)
+}
+
+//get transaction details
+func (tx *Transaction) getTxParams() {
+	client := tx.con.client
+	nonce, err := client.PendingNonceAt(context.Background(), tx.Acc.WalletAddress)
+	if err != nil {
+		log.Fatalf("error getting nonce %+v", err)
+	}
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatalf("error on suggest gas price %+v", err)
+	}
+	auth := tx.Acc.auth
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
 	auth.GasLimit = uint64(300000)
 	auth.GasPrice = gasPrice
+}
 
+func (Tx *Transaction) MintNew() {
+	CAToken := Tx.con.CAToken
+	auth := Tx.Acc.auth
+	to := Tx.to
+	Tx.getTxParams()
+	//sends the transcation
+	//tx used for tracking the transcation detail
+	transX, err := CAToken.Mint(auth, to)
+
+	//add tx info on db list for tracking
 }
