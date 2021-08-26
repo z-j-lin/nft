@@ -12,12 +12,12 @@ import (
 )
 
 func subToConEventLog() {
-	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
+	rpcurl := "wss://ropsten.infura.io/ws/v3/27c2937f16d14d33a4c8315e22109f09"
 	client, err := ethclient.Dial(rpcurl)
 	if err != nil {
 		log.Panic("cant connect to rpc server: %+v", err)
 	}
-	contractAddress := common.HexToAddress("5DD32251e8A2Ac4D40d115520dC49E6a94465ee7")
+	contractAddress := common.HexToAddress("0x3DA85558aF6D0d0D03283fa23eD1edE90f7E3E03")
 	query := ethereum.FilterQuery{
 		Addresses: []common.Address{contractAddress},
 	}
