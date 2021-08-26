@@ -7,11 +7,11 @@ import (
 	"log"
 	"math/big"
 
-	CAToken "./build/CAToken"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor/Tokenbins/build/CAToken"
 )
 
 func main() {
@@ -42,17 +42,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)     // in wei
-	auth.GasLimit = uint64(300000) // in units
+	auth.Value = big.NewInt(0)      // in wei
+	auth.GasLimit = uint64(4074643) // in units
 	auth.GasPrice = gasPrice
+	auth.NoSend = false
 	serverAddress := common.HexToAddress("0x282e0869A1fA76B7f6d2D4B2758b60bF0284F418")
 	address, tx, instance, err := CAToken.DeployCAToken(auth, client, "CAToken", "CAT", serverAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(address.Hex())
+
 	fmt.Println(tx.Hash().Hex())
+	fmt.Println(tx.Gas())
 	_ = instance
 }
