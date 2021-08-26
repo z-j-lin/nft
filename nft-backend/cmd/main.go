@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -12,12 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
-	CAToken
 )
 
 var (
@@ -69,12 +65,10 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-	
+
 	//run buildtransaction with inforrmation
 	//add transaction to the queue
 }
-
-
 
 func SendTransactionMint() {
 
@@ -86,15 +80,16 @@ func SendTransactionMint() {
 //
 func VerifyTransactionMint() {
 }
-//use a hash to store token information on redis 
+
+//use a hash to store token information on redis
 // HASHKEY tokenID buy day, expire day,
-//store tokenID key chain as Hash map 
+//store tokenID key chain as Hash map
 //use HVALS to extract tokenIDs
 //sends the client a list of tokens owned by the address and associated resource ID
 func LoadAccessTokens(w http.ResponseWriter, r *http.Request) {
-	//extract the user account 
-	//querrry redis db for tokens owned by account 
-	//query each tokenID for the 
+	//extract the user account
+	//querrry redis db for tokens owned by account
+	//query each tokenID for the
 
 	//extract session ID, user account
 
@@ -153,8 +148,6 @@ func verify(account string, data string, signature string) (bool, error) {
 		return false, nil
 	}
 }
-
-
 
 func logout(w http.ResponseWriter, req *http.Request) {
 	session, _ := store.Get(req, "cookie-name")
