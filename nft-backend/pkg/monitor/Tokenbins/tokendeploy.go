@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/z-j-lin/nft/tree/main/nft-backend/Tokenbins/build/CAToken"
+	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor/Tokenbins/build/CAToken"
 )
 
 func main() {
