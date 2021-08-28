@@ -35,8 +35,3 @@ func subToConEventLog() {
 		}
 	}
 }
-
-func main() {
-	subToConEventLog()
-
-}

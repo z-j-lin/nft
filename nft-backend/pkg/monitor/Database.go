@@ -1,4 +1,4 @@
-package monitor
+package main
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type Database struct {
 	client *redis.Client
 }
 
-func NewDBinstance(address string) (*Database, error) {
+func NewDBinstance() (*Database, error) {
 	ctx := context.TODO()
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
@@ -49,21 +49,42 @@ func (db *Database) getValue(key string) string {
 //stores the address in a list
 func (db *Database) Qmint(address, resourceID string) error {
 	//create a key for the set
-	key := address + resourceID
-	//create a hash map with address as key holding account address and resourceID
-	db.client.HSet(context.TODO(), key, "account", address)
-	db.client.HSet(context.TODO(), key, "resourceID", resourceID)
-	//push the key on the mintq list
-	db.client.LPush(context.TODO(), "MintQ", key)
+	Job := address + resourceID
+	//push the job on the mintq list
+	db.client.LPush(context.TODO(), "MintQ", Job)
 	return nil
 }
 
 //take off the transaction queue
-func (db *Database) DQmint() {
+func (db *Database) DQmint() (string, string, error) {
 	//BRPOP from the end of mint
-	val, err := db.client.BRPop(context.TODO(), 10*time.Second, "MintQ").Result()
+	Job, err := db.client.BRPop(context.TODO(), 1*time.Second, "MintQ").Result()
 	if err != nil {
-		fmt.Errorf("unable to pop of transaction list: %v", err)
+		panic(err)
 	}
-	fmt.Println(val)
+	account := Job[1][:42]
+	resourceID := Job[1][42:]
+	return account, resourceID, nil
+}
+
+//add to pending translist
+//takes in the tx hash, recipient address, resource ID
+func (db *Database) Qpending(txhash, address, resourceID string) error {
+	tx := txhash + address + resourceID
+	//push the job on the mintq list
+	db.client.LPush(context.TODO(), "PendingTX", tx)
+	return nil
+}
+
+func (db *Database) DQpending() (string, string, string) {
+	//BRPOP from the end of mint
+	Txdetails, err := db.client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
+	if err != nil {
+		panic(err)
+	}
+	txHash := Txdetails[1][:66]
+	account := Txdetails[1][66:108]
+	resourceID := Txdetails[1][108:]
+	fmt.Println(Txdetails)
+	return txHash, account, resourceID
 }
