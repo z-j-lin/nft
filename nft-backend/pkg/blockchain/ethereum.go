@@ -1,10 +1,9 @@
 package blockchain
 
 import (
-	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -15,8 +14,9 @@ import (
 type ethereum struct {
 	client    *ethclient.Client
 	contract  *Contract
-	accounts  map[common.Address]accounts.Account
+	account   accounts.Account
 	keystore  *keystore.KeyStore
+	key       *keystore.Key
 	passcodes map[common.Address]string
 }
 
@@ -25,7 +25,7 @@ func NewEtherClient(rpcurl, contractAddress string) (*ethereum, error) {
 
 	ethClient, err := ethclient.Dial(rpcurl)
 	if err != nil {
-		fmt.Errorf("errror @ NewEtherClient unable to dial RPC endpoint: %v", err)
+		log.Printf("errror @ NewEtherClient unable to dial RPC endpoint: %v", err)
 		return nil, err
 	}
 
@@ -35,7 +35,12 @@ func NewEtherClient(rpcurl, contractAddress string) (*ethereum, error) {
 
 	eth.loadaccount()
 	eth.loadpasscode()
+	err = eth.unlockkey(eth.account)
+	if err != nil {
+		return nil, err
+	}
 	eth.contract = &Contract{eth: eth}
+	eth.contract.init()
 
 	return eth, nil
 
@@ -55,46 +60,24 @@ func (eth *ethereum) loadaccount() {
 	var dirPath string
 	fmt.Printf("enter realtive key dir path: ")
 	fmt.Scanf("%s", &dirPath)
-	accounts := make(map[common.Address]accounts.Account)
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
-	for _, wallet := range ks.Wallets() {
-		for _, account := range wallet.Accounts() {
-			accounts[account.Address] = account
-		}
-	}
 	eth.keystore = ks
-	eth.accounts = accounts
+	eth.account = ks.Accounts()[0]
 }
 
-//get transaction details
-func (tx *Transaction) getTxParams() {
-	client := tx.con.client
-	nonce, err := client.PendingNonceAt(context.Background(), tx.Acc.WalletAddress)
-	if err != nil {
-		log.Fatalf("error getting nonce %+v", err)
+func (eth *ethereum) unlockkey(account accounts.Account) error {
+	passcode, exists := eth.passcodes[account.Address]
+	if !exists {
+		return fmt.Errorf("passcode not found")
 	}
-	gasPrice, err := client.SuggestGasPrice(context.Background())
+	//get the encrypted private key in json form
+	encrytpedKey, err := ioutil.ReadFile((account.URL.Path))
 	if err != nil {
-		log.Fatalf("error on suggest gas price %+v", err)
+		return err
 	}
-	auth := tx.Acc.auth
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)
-	auth.GasLimit = uint64(300000)
-	auth.GasPrice = gasPrice
+	//decrypt the private key
+	privateKey, err := keystore.DecryptKey(encrytpedKey, passcode)
+	eth.key = privateKey
+	return nil
 }
-
-/*
-func (Tx *Transaction) MintNew() {
-	CAToken := Tx.con.CAToken
-	auth := Tx.Acc.auth
-	to := Tx.to
-	Tx.getTxParams()
-	//sends the transcation
-	//tx used for tracking the transcation detail
-	//transX, err := CAToken.Mint(auth, to)
-
-	//add tx info on db list for tracking
-}
-*/

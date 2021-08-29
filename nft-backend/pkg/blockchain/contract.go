@@ -3,6 +3,7 @@ package blockchain
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	CAToken "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Token"
 )
 
@@ -21,11 +22,11 @@ func (c *Contract) init() {
 
 }
 
-func (c *Contract) MintNewtoken(Auth *bind.TransactOpts, recipientAddress string) {
+func (c *Contract) MintNewtoken(Auth *bind.TransactOpts, recipientAddress string) *types.Transaction {
 	address := common.HexToAddress(recipientAddress)
 	tx, err := c.instance.Mint(Auth, address)
 	if err != nil {
 		panic(err)
 	}
-
+	return tx
 }

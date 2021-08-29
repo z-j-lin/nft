@@ -1,4 +1,4 @@
-package main
+package CAToken
 
 import (
 	"context"
@@ -11,10 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor/Tokenbins/build/CAToken"
 )
 
-func main() {
+func deploy() {
 	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
 	client, err := ethclient.Dial(rpcurl)
 	if err != nil {
@@ -50,7 +49,7 @@ func main() {
 	auth.GasPrice = gasPrice
 	auth.NoSend = false
 	serverAddress := common.HexToAddress("0x282e0869A1fA76B7f6d2D4B2758b60bF0284F418")
-	address, tx, instance, err := CAToken.DeployCAToken(auth, client, "CAToken", "CAT", serverAddress)
+	address, tx, instance, err := DeployCAToken(auth, client, "CAToken", "CAT", serverAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
