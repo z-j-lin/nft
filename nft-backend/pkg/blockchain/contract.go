@@ -22,11 +22,12 @@ func (c *Contract) init() {
 
 }
 
-func (c *Contract) MintNewtoken(Auth *bind.TransactOpts, recipientAddress string) *types.Transaction {
-	address := common.HexToAddress(recipientAddress)
-	tx, err := c.instance.Mint(Auth, address)
+func (c *Contract) MintNewtoken(
+	Auth *bind.TransactOpts,
+	recipientAddress common.Address) (*types.Transaction, error) {
+	tx, err := c.instance.Mint(Auth, recipientAddress)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return tx
+	return tx, nil
 }
