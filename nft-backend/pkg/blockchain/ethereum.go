@@ -13,10 +13,11 @@ import (
 )
 
 type ethereum struct {
-	client   *ethclient.Client
-	contract *Contract
-	accounts map[common.Address]accounts.Account
-	keystore *keystore.KeyStore
+	client    *ethclient.Client
+	contract  *Contract
+	accounts  map[common.Address]accounts.Account
+	keystore  *keystore.KeyStore
+	passcodes map[common.Address]string
 }
 
 /*initializes a client to rpc. */
@@ -47,6 +48,7 @@ func (eth *ethereum) loadpasscode() {
 	fmt.Printf("enter passcode: ")
 	fmt.Scanf("%s", &passcode)
 	passcodes[common.HexToAddress(address)] = passcode
+	eth.passcodes = passcodes
 }
 
 func (eth *ethereum) loadaccount() {
@@ -63,21 +65,6 @@ func (eth *ethereum) loadaccount() {
 	}
 	eth.keystore = ks
 	eth.accounts = accounts
-}
-
-type Transaction struct {
-	con Contract
-	to  common.Address
-	Acc ServerAcc
-}
-
-func NewTransaction(to string, Con Contract, Acc ServerAcc) Transaction {
-	recipientAddr := common.HexToAddress(to)
-	return Transaction{
-		con: Con,
-		to:  recipientAddr,
-		Acc: Acc,
-	}
 }
 
 //get transaction details

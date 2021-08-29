@@ -56,15 +56,18 @@ func (db *Database) Qmint(address, resourceID string) error {
 }
 
 //take off the transaction queue
-func (db *Database) DQmint() (string, string, error) {
+func (db *Database) DQmint() (account, resourceID string) {
 	//BRPOP from the end of mint
 	Job, err := db.client.BRPop(context.TODO(), 1*time.Second, "MintQ").Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		panic(err)
 	}
-	account := Job[1][:42]
-	resourceID := Job[1][42:]
-	return account, resourceID, nil
+	if err != redis.Nil {
+		account := Job[1][:42]
+		resourceID := Job[1][42:]
+		return account, resourceID
+	}
+	return account, resourceID
 }
 
 //add to pending translist
@@ -87,4 +90,16 @@ func (db *Database) DQpending() (string, string, string) {
 	resourceID := Txdetails[1][108:]
 	fmt.Println(Txdetails)
 	return txHash, account, resourceID
+}
+
+func main() {
+	rdb, err := NewDBinstance()
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < 10; i++ {
+		Account, contentID := rdb.DQmint()
+
+		fmt.Println("account:", Account, "contentID", contentID)
+	}
 }
