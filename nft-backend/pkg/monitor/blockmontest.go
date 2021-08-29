@@ -1,4 +1,4 @@
-package main
+package monitor
 
 import (
 	"context"
@@ -15,7 +15,7 @@ func subToConEventLog() {
 	rpcurl := "wss://ropsten.infura.io/ws/v3/27c2937f16d14d33a4c8315e22109f09"
 	client, err := ethclient.Dial(rpcurl)
 	if err != nil {
-		log.Panic("cant connect to rpc server: %+v", err)
+		log.Panic("cant connect to rpc server: ", err)
 	}
 	contractAddress := common.HexToAddress("0x3DA85558aF6D0d0D03283fa23eD1edE90f7E3E03")
 	query := ethereum.FilterQuery{
