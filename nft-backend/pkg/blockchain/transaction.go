@@ -7,16 +7,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor"
 )
 
 type transaction struct {
 	contract      *Contract
 	Auth          *bind.TransactOpts
 	recipientAddr common.Address
-	db            *monitor.Database
+	db            *redisDb.Database
 }
 
+//returns a pointer to a new transaction object
 func NewTransaction(TokenRecipient string, contract *Contract) *transaction {
 	//instantiate new keyed transactor
 	auth := bind.NewKeyedTransactor(contract.eth.key.PrivateKey)
