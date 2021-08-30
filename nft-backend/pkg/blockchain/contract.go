@@ -12,7 +12,7 @@ type Contract struct {
 }
 
 func (c *Contract) init() {
-	instance, err := CAToken.NewCAToken(c.contractAddress, c.eth.client)
+	instance, err := CAToken.NewCAToken(c.contractAddress, c.eth.Client)
 	if err != nil {
 		panic(err)
 	}
