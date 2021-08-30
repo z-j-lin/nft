@@ -6,26 +6,27 @@ import (
 )
 
 type TXQmon struct {
-	db    *redisDb.Database
-	eth   *blockchain.Ethereum
-	MintQ chan []string
-	QMANI bool
+	db       *redisDb.Database
+	eth      *blockchain.Ethereum
+	contract *blockchain.Contract
+	MintQ    chan [2]string
+	QMANI    bool
 }
 
-func NewQmon(rdb *redisDb.Database) *TXQmon {
+func NewQmon(rdb *redisDb.Database, eth *blockchain.Ethereum) *TXQmon {
 	//channel for storing mint jobs
-	//takes a pointer to a Transaction object
 	Mintque := make(chan [2]string, 3)
-
 	Qmon := &TXQmon{
 		db:    rdb,
 		MintQ: Mintque,
+		eth:   eth,
 	}
 	return Qmon
 }
 
 //function to start the Transaction que monitoring loop
 func (qmon *TXQmon) startTXQmon() {
+	//start the transaction que monitor
 	go qmon.TXloop()
 }
 
@@ -40,12 +41,13 @@ func (qmon *TXQmon) TXloop() {
 		account, resourceID := qmon.db.DQmint()
 		if account != "" {
 			if !qmon.QMANI {
-				go qmon.txqmanager()
+				go qmon.txqmanager(qmon.MintQ)
+				qmon.QMANI = true
 			}
 			//channel the transaction information to the TX manager
 			txinfo[0] = account
 			txinfo[1] = resourceID
-			qmon.MintQ <- txinfo[:]
+			qmon.MintQ <- txinfo
 		}
 
 	}
@@ -53,29 +55,33 @@ func (qmon *TXQmon) TXloop() {
 
 //loops through storing items into a verfication channel
 //the channel should take a unique verfication object for each Transaction
+//this should be ran in its own go routine
+//function is expected to block when the verification chan is full
+
 func (qmon *TXQmon) Verfificationloop() {
+	killChan := make(chan bool)
 	for {
-		//check if the Transaction queue has a job
+		//check if there are pending transactions
 		hash, account, resourceID := qmon.db.DQpending()
 		if account != "" {
-
+			//check if the verification manager is up
+			//if theres a pending transaction
+			//pass the job to the verification manager via a buffered channel
 		}
 	}
 }
 
-func (qmon *TXQmon) txqmanager() {
-	//when there are no jobs in the que, kill the manager
-	done := false
-	for !done {
+func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
+	for {
 		select {
-
-		case done <- killChan:
-			return
 		//start a Transaction
-		case tx <- Mintq:
-
+		case tx := <-MintQ:
 			//start a mint worker
+			//once started
+			go blockchain.NewTransaction(tx[0], tx[1], qmon.contract)
+		//if nothing is in the mintq kill the manager
+		default:
+			return
 		}
-
 	}
 }
