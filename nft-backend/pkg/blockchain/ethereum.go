@@ -12,12 +12,12 @@ import (
 )
 
 type Ethereum struct {
-	client    *ethclient.Client
-	contract  *Contract
-	account   accounts.Account
-	keystore  *keystore.KeyStore
-	key       *keystore.Key
-	passcodes map[common.Address]string
+	Client    *ethclient.Client
+	Contract  *Contract
+	Account   accounts.Account
+	Keystore  *keystore.KeyStore
+	Key       *keystore.Key
+	Passcodes map[common.Address]string
 }
 
 /*initializes a client to rpc. */
@@ -30,20 +30,18 @@ func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
 	}
 
 	eth := &Ethereum{
-		client: ethClient,
+		Client: ethClient,
 	}
 
 	eth.loadaccount()
 	eth.loadpasscode()
-	err = eth.unlockkey(eth.account)
+	err = eth.unlockkey(eth.Account)
 	if err != nil {
 		return nil, err
 	}
-	eth.contract = &Contract{eth: eth}
-	eth.contract.init()
-
+	eth.Contract = &Contract{eth: eth}
+	eth.Contract.init()
 	return eth, nil
-
 }
 func (eth *Ethereum) loadpasscode() {
 	var passcode, address string
@@ -53,7 +51,7 @@ func (eth *Ethereum) loadpasscode() {
 	fmt.Printf("enter passcode: ")
 	fmt.Scanf("%s", &passcode)
 	passcodes[common.HexToAddress(address)] = passcode
-	eth.passcodes = passcodes
+	eth.Passcodes = passcodes
 }
 
 func (eth *Ethereum) loadaccount() {
@@ -62,12 +60,12 @@ func (eth *Ethereum) loadaccount() {
 	fmt.Scanf("%s", &dirPath)
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
-	eth.keystore = ks
-	eth.account = ks.Accounts()[0]
+	eth.Keystore = ks
+	eth.Account = ks.Accounts()[0]
 }
 
 func (eth *Ethereum) unlockkey(account accounts.Account) error {
-	passcode, exists := eth.passcodes[account.Address]
+	passcode, exists := eth.Passcodes[account.Address]
 	if !exists {
 		return fmt.Errorf("passcode not found")
 	}
@@ -78,6 +76,6 @@ func (eth *Ethereum) unlockkey(account accounts.Account) error {
 	}
 	//decrypt the private key
 	privateKey, err := keystore.DecryptKey(encrytpedKey, passcode)
-	eth.key = privateKey
+	eth.Key = privateKey
 	return nil
 }

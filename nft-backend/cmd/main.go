@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	redisDB "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 )
 
 var (
@@ -38,10 +39,8 @@ type loginRes struct {
 
 //struct to hold information about each token
 type TokenRegistry struct {
-	TokenID   uint
-	Account   string
-	StartTime time.Time
-	EndTime   time.Time
+	resourceID string
+	Account    string
 }
 
 //create a map that mapps sessionIDs to etheraddress
@@ -52,10 +51,14 @@ type TokenRegistry struct {
 
 //handler function for buying a token
 func BuyToken(w http.ResponseWriter, r *http.Request) {
-
+	//instantiate db instance
+	rdb, err := redisDB.NewDBinstance()
+	if err != nil {
+		panic(err)
+	}
 	var buy TokenRegistry
 	//decode body
-	err := json.NewDecoder(r.Body).Decode(&buy)
+	err = json.NewDecoder(r.Body).Decode(&buy)
 	if err != nil {
 		panic(err)
 	}
@@ -65,17 +68,10 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-
-	//run buildtransaction with inforrmation
 	//add transaction to the queue
+	rdb.Qmint(buy.Account, buy.resourceID)
 }
 
-func SendTransactionMint() {
-
-}
-
-//run as a go routine
-//constantly checks the transaction trie
 //if the current transaction count is 30 above last transaction
 //
 func VerifyTransactionMint() {
@@ -191,6 +187,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			panic(err)
 		}
+		//TODO: DELETE
 		fmt.Println(respbyte)
 		w.Write([]byte("hello"))
 	}

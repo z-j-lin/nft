@@ -10,7 +10,7 @@ import (
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 )
 
-type Transaction struct {
+type MintTx struct {
 	contract      *Contract
 	Auth          *bind.TransactOpts
 	recipientAddr common.Address
@@ -19,22 +19,24 @@ type Transaction struct {
 }
 
 //returns a pointer to a new transaction object
-func NewTransaction(TokenRecipient, resourceID string, contract *Contract) *Transaction {
+func NewTransaction(TokenRecipient, resourceID string, contract *Contract) {
 	//instantiate new keyed transactor
-	auth := bind.NewKeyedTransactor(contract.eth.key.PrivateKey)
+	auth := bind.NewKeyedTransactor(contract.eth.Key.PrivateKey)
 	traddr := common.HexToAddress(TokenRecipient)
-	return &Transaction{
+	tranx := &MintTx{
 		Auth:          auth,
 		contract:      contract,
 		recipientAddr: traddr,
 	}
+	tranx.resourceID = resourceID
+	tranx.SendTransaction(TokenRecipient)
 }
 
-func (tx *Transaction) init_transactOpt() {
+func (mtx *MintTx) init_transactOpt() {
 	// collect the nonce and the gas price
-	auth := tx.Auth
-	client := tx.contract.eth.client
-	fromAddress := tx.contract.eth.account.Address
+	auth := mtx.Auth
+	client := mtx.contract.eth.Client
+	fromAddress := mtx.contract.eth.Account.Address
 	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
 		log.Fatal(err)
@@ -48,17 +50,19 @@ func (tx *Transaction) init_transactOpt() {
 }
 
 //function to send the transaction
-func (tx *Transaction) SendTransaction(address, resourceID string) {
+func (mtx *MintTx) SendTransaction(address string) {
 	to := common.HexToAddress(address)
-	Catoken := tx.contract.instance
-	tx.init_transactOpt()
-	receipt, err := Catoken.Mint(tx.Auth, to)
+	Catoken := mtx.contract.instance
+	mtx.init_transactOpt()
+	tx, err := Catoken.Mint(mtx.Auth, to)
 	if err != nil {
 		log.Printf("transaction failed: %v", err)
+		//add the transaction back to the transaction que
+		mtx.db.Qmint(mtx.recipientAddr.Hex(), mtx.resourceID)
+	} else {
+		//if didnt fail add the transaction to the pending list
+		mtx.db.Qpending(tx.Hash().Hex(), address, mtx.resourceID)
+		return
 	}
-	//wait 10 seconds, check if its through
-	//if failed exit
-	txhash := receipt.Hash().Hex()
-	//if didnt fail add the transaction to the pending list
-	tx.db.Qpending(txhash, address, resourceID)
+	return
 }
