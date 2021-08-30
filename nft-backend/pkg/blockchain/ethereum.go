@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type ethereum struct {
+type Ethereum struct {
 	client    *ethclient.Client
 	contract  *Contract
 	account   accounts.Account
@@ -21,7 +21,7 @@ type ethereum struct {
 }
 
 /*initializes a client to rpc. */
-func NewEtherClient(rpcurl, contractAddress string) (*ethereum, error) {
+func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
 
 	ethClient, err := ethclient.Dial(rpcurl)
 	if err != nil {
@@ -29,7 +29,7 @@ func NewEtherClient(rpcurl, contractAddress string) (*ethereum, error) {
 		return nil, err
 	}
 
-	eth := &ethereum{
+	eth := &Ethereum{
 		client: ethClient,
 	}
 
@@ -45,7 +45,7 @@ func NewEtherClient(rpcurl, contractAddress string) (*ethereum, error) {
 	return eth, nil
 
 }
-func (eth *ethereum) loadpasscode() {
+func (eth *Ethereum) loadpasscode() {
 	var passcode, address string
 	passcodes := make(map[common.Address]string)
 	fmt.Printf("enter address: ")
@@ -56,7 +56,7 @@ func (eth *ethereum) loadpasscode() {
 	eth.passcodes = passcodes
 }
 
-func (eth *ethereum) loadaccount() {
+func (eth *Ethereum) loadaccount() {
 	var dirPath string
 	fmt.Printf("enter realtive key dir path: ")
 	fmt.Scanf("%s", &dirPath)
@@ -66,7 +66,7 @@ func (eth *ethereum) loadaccount() {
 	eth.account = ks.Accounts()[0]
 }
 
-func (eth *ethereum) unlockkey(account accounts.Account) error {
+func (eth *Ethereum) unlockkey(account accounts.Account) error {
 	passcode, exists := eth.passcodes[account.Address]
 	if !exists {
 		return fmt.Errorf("passcode not found")

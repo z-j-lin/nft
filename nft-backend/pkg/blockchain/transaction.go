@@ -7,28 +7,30 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 )
 
-type transaction struct {
+type Transaction struct {
 	contract      *Contract
 	Auth          *bind.TransactOpts
 	recipientAddr common.Address
 	db            *redisDb.Database
+	resourceID    string
 }
 
 //returns a pointer to a new transaction object
-func NewTransaction(TokenRecipient string, contract *Contract) *transaction {
+func NewTransaction(TokenRecipient, resourceID string, contract *Contract) *Transaction {
 	//instantiate new keyed transactor
 	auth := bind.NewKeyedTransactor(contract.eth.key.PrivateKey)
 	traddr := common.HexToAddress(TokenRecipient)
-	return &transaction{
+	return &Transaction{
 		Auth:          auth,
 		contract:      contract,
 		recipientAddr: traddr,
 	}
 }
 
-func (tx *transaction) init_transactOpt() {
+func (tx *Transaction) init_transactOpt() {
 	// collect the nonce and the gas price
 	auth := tx.Auth
 	client := tx.contract.eth.client
@@ -46,7 +48,7 @@ func (tx *transaction) init_transactOpt() {
 }
 
 //function to send the transaction
-func (tx *transaction) SendTransaction(address, resourceID string) {
+func (tx *Transaction) SendTransaction(address, resourceID string) {
 	to := common.HexToAddress(address)
 	Catoken := tx.contract.instance
 	tx.init_transactOpt()
