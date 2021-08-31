@@ -45,19 +45,22 @@ func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
 }
 func (eth *Ethereum) loadpasscode() {
 	var passcode, address string
+	address = eth.Account.Address.Hex()
+	passcode = "pineapple"
 	passcodes := make(map[common.Address]string)
-	fmt.Printf("enter address: ")
-	fmt.Scanf("%s", &address)
-	fmt.Printf("enter passcode: ")
-	fmt.Scanf("%s", &passcode)
+	//fmt.Printf("enter address: ")
+	//fmt.Scanf("%s", &address)
+	//fmt.Printf("enter passcode: ")
+	//fmt.Scanf("%s", &passcode)
 	passcodes[common.HexToAddress(address)] = passcode
 	eth.Passcodes = passcodes
 }
 
 func (eth *Ethereum) loadaccount() {
 	var dirPath string
-	fmt.Printf("enter realtive key dir path: ")
-	fmt.Scanf("%s", &dirPath)
+	//fmt.Printf("enter realtive key dir path: ")
+	//fmt.Scanf("%s", &dirPath)
+	dirPath = "./tmp"
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
 	eth.Keystore = ks

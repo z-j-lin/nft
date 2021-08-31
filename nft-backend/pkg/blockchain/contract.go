@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"log"
+
 	"github.com/ethereum/go-ethereum/common"
 	CAToken "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Token"
 )
@@ -14,8 +16,9 @@ type Contract struct {
 func (c *Contract) init() {
 	instance, err := CAToken.NewCAToken(c.contractAddress, c.eth.Client)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to initiate contract instance: %v", err)
 	}
+
 	c.instance = instance
 
 }

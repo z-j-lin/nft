@@ -1,16 +1,18 @@
 package monitor
 
 import (
+	"fmt"
+
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
 type TXQmon struct {
-	db       *redisDb.Database
-	eth      *blockchain.Ethereum
-	contract *blockchain.Contract
-	MintQ    chan [2]string
-	QMANI    bool
+	db    *redisDb.Database
+	eth   *blockchain.Ethereum
+	MintQ chan [2]string
+	done  chan bool
+	QMANI bool
 }
 
 func NewQmon(rdb *redisDb.Database, eth *blockchain.Ethereum) *TXQmon {
@@ -25,7 +27,7 @@ func NewQmon(rdb *redisDb.Database, eth *blockchain.Ethereum) *TXQmon {
 }
 
 //function to start the Transaction que monitoring loop
-func (qmon *TXQmon) startTXQmon() {
+func (qmon *TXQmon) StartTXQmon() {
 	//start the transaction que monitor
 	go qmon.TXloop()
 }
@@ -49,7 +51,6 @@ func (qmon *TXQmon) TXloop() {
 			txinfo[1] = resourceID
 			qmon.MintQ <- txinfo
 		}
-
 	}
 }
 
@@ -57,7 +58,7 @@ func (qmon *TXQmon) TXloop() {
 //the channel should take a unique verfication object for each Transaction
 //this should be ran in its own go routine
 //function is expected to block when the verification chan is full
-
+/*
 func (qmon *TXQmon) Verfificationloop() {
 	killChan := make(chan bool)
 	for {
@@ -70,18 +71,30 @@ func (qmon *TXQmon) Verfificationloop() {
 		}
 	}
 }
-
+*/
 func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
+	taskStatus := make(chan bool, 2)
+	ongoingtasks := 0
+
 	for {
-		select {
-		//start a Transaction
-		case tx := <-MintQ:
-			//start a mint worker
-			//once started
-			go blockchain.NewTransaction(tx[0], tx[1], qmon.contract)
-		//if nothing is in the mintq kill the manager
-		default:
-			return
+		fmt.Println("task Count:", ongoingtasks)
+		if ongoingtasks < 3 {
+			select {
+			//start a Transaction
+			case tx := <-MintQ:
+				fmt.Println("1", tx[0], tx[1])
+				//start a mint worker
+				ongoingtasks += 1
+				go blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, taskStatus)
+			}
+		}
+		if ongoingtasks > 2 {
+			select {
+			//if nothing is in the mintq kill the manager
+			case <-taskStatus:
+				fmt.Println("ongoingtask at decrementer", ongoingtasks)
+				ongoingtasks -= 1
+			}
 		}
 	}
 }

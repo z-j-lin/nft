@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -19,7 +20,7 @@ type MintTx struct {
 }
 
 //returns a pointer to a new transaction object
-func NewTransaction(TokenRecipient, resourceID string, contract *Contract) {
+func NewTransaction(TokenRecipient, resourceID string, contract *Contract, rdb *redisDb.Database, taskStatus chan bool) {
 	//instantiate new keyed transactor
 	auth := bind.NewKeyedTransactor(contract.eth.Key.PrivateKey)
 	traddr := common.HexToAddress(TokenRecipient)
@@ -27,9 +28,13 @@ func NewTransaction(TokenRecipient, resourceID string, contract *Contract) {
 		Auth:          auth,
 		contract:      contract,
 		recipientAddr: traddr,
+		db:            rdb,
 	}
 	tranx.resourceID = resourceID
-	tranx.SendTransaction(TokenRecipient)
+	fmt.Println("sending")
+
+	tranx.SendTransaction(TokenRecipient, taskStatus)
+	return
 }
 
 func (mtx *MintTx) init_transactOpt() {
@@ -37,6 +42,7 @@ func (mtx *MintTx) init_transactOpt() {
 	auth := mtx.Auth
 	client := mtx.contract.eth.Client
 	fromAddress := mtx.contract.eth.Account.Address
+	fmt.Println(fromAddress)
 	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
 		log.Fatal(err)
@@ -50,19 +56,25 @@ func (mtx *MintTx) init_transactOpt() {
 }
 
 //function to send the transaction
-func (mtx *MintTx) SendTransaction(address string) {
+func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
+
 	to := common.HexToAddress(address)
 	Catoken := mtx.contract.instance
 	mtx.init_transactOpt()
+	//set true for testing monitor
+	mtx.Auth.NoSend = true
+	//sendtx
 	tx, err := Catoken.Mint(mtx.Auth, to)
+	fmt.Println("qpending")
 	if err != nil {
 		log.Printf("transaction failed: %v", err)
 		//add the transaction back to the transaction que
 		mtx.db.Qmint(mtx.recipientAddr.Hex(), mtx.resourceID)
 	} else {
 		//if didnt fail add the transaction to the pending list
+		fmt.Println("qpending")
 		mtx.db.Qpending(tx.Hash().Hex(), address, mtx.resourceID)
-		return
+		taskStatus <- true
+		fmt.Println("after qpending")
 	}
-	return
 }
