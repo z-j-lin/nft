@@ -72,9 +72,11 @@ func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
 		mtx.db.Qmint(mtx.recipientAddr.Hex(), mtx.resourceID)
 	} else {
 		//if didnt fail add the transaction to the pending list
-		fmt.Println("qpending")
+		fmt.Println("bout to be in qpending")
 		mtx.db.Qpending(tx.Hash().Hex(), address, mtx.resourceID)
-		taskStatus <- true
-		fmt.Println("after qpending")
+		//takes a item off the numworker channel from the loop function
+		status := <-taskStatus
+		_ = status
+		fmt.Println("transaction added to pending que")
 	}
 }
