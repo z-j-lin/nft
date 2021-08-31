@@ -8,17 +8,17 @@ import (
 )
 
 type Contract struct {
-	contractAddress common.Address
+	ContractAddress common.Address
 	eth             *Ethereum
-	instance        *CAToken.CAToken
+	Instance        *CAToken.CAToken
 }
 
 func (c *Contract) init() {
-	instance, err := CAToken.NewCAToken(c.contractAddress, c.eth.Client)
+	instance, err := CAToken.NewCAToken(c.ContractAddress, c.eth.Client)
 	if err != nil {
 		log.Fatalf("failed to initiate contract instance: %v", err)
 	}
 
-	c.instance = instance
+	c.Instance = instance
 
 }
