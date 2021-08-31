@@ -3,6 +3,7 @@ package redisDb
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -84,23 +85,11 @@ func (db *Database) DQpending() (string, string, string) {
 	//BRPOP from the end of mint
 	Txdetails, err := db.client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
 	if err != nil {
-		panic(err)
+		log.Println("at DQpending", err)
 	}
 	txHash := Txdetails[1][:66]
 	account := Txdetails[1][66:108]
 	resourceID := Txdetails[1][108:]
 	fmt.Println(Txdetails)
 	return txHash, account, resourceID
-}
-
-func main() {
-	rdb, err := NewDBinstance()
-	if err != nil {
-		panic(err)
-	}
-	for i := 0; i < 10; i++ {
-		Account, contentID := rdb.DQmint()
-
-		fmt.Println("account:", Account, "contentID", contentID)
-	}
 }
