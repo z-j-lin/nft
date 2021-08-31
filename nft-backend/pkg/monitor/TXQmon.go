@@ -33,23 +33,45 @@ func (qmon *TXQmon) StartTXQmon() {
 }
 
 //checks the mint q for jobs
-//blocks when MintQ chan is full
-//start jobs by loading into the job queue channel
-//
 func (qmon *TXQmon) TXloop() {
 	var txinfo [2]string
+	numWorkers := make(chan bool, 3)
 	for {
+
 		//check if the Transaction queue has a job
 		account, resourceID := qmon.db.DQmint()
 		if account != "" {
+			//numworkers wont be read from until a job is finished
+			//blocks when the buffer is full
+			numWorkers <- true
 			if !qmon.QMANI {
-				go qmon.txqmanager(qmon.MintQ)
+				go qmon.txqmanager(qmon.MintQ, numWorkers)
 				qmon.QMANI = true
 			}
 			//channel the transaction information to the TX manager
 			txinfo[0] = account
 			txinfo[1] = resourceID
 			qmon.MintQ <- txinfo
+		}
+	}
+}
+
+//this works a little too complicated can be simpler, im over it rn
+func (qmon *TXQmon) txqmanager(MintQ chan [2]string, taskStatus chan bool) {
+	ongoingtasks := 0
+	for {
+		fmt.Println("task Count:", ongoingtasks)
+		select {
+		//start a Transaction
+		case tx, more := <-MintQ:
+			//if nothing is in the mintq kill the manager
+			if !more {
+				return
+			}
+			fmt.Println("1", tx[0], tx[1])
+			//start a mint worker
+			ongoingtasks += 1
+			go blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, taskStatus)
 		}
 	}
 }
@@ -72,29 +94,3 @@ func (qmon *TXQmon) Verfificationloop() {
 	}
 }
 */
-func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
-	taskStatus := make(chan bool, 2)
-	ongoingtasks := 0
-
-	for {
-		fmt.Println("task Count:", ongoingtasks)
-		if ongoingtasks < 3 {
-			select {
-			//start a Transaction
-			case tx := <-MintQ:
-				fmt.Println("1", tx[0], tx[1])
-				//start a mint worker
-				ongoingtasks += 1
-				go blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, taskStatus)
-			}
-		}
-		if ongoingtasks > 2 {
-			select {
-			//if nothing is in the mintq kill the manager
-			case <-taskStatus:
-				fmt.Println("ongoingtask at decrementer", ongoingtasks)
-				ongoingtasks -= 1
-			}
-		}
-	}
-}
