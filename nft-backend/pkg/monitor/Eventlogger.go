@@ -3,12 +3,10 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"go/types"
 	"log"
 	"math/big"
 	"strings"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -29,12 +27,51 @@ type Events struct {
 	eth *blockchain.Ethereum
 }
 
-func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
-	receipt, err := e.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+func (e *Events) eventlogByTXHash(txhex string) {
+	txhash := common.HexToHash(txhex)
+	receipt, err := e.eth.Client.TransactionReceipt(context.TODO(), txhash)
 	if err != nil {
-		log.Println(err, "@ eventlogbytx")
+		log.Println(err, "@ eventlogByTXHASH")
+	}
+	//gete the logs of the transaction
+	TXlog := receipt.Logs
+
+	CATokenAbi, err := abi.JSON(strings.NewReader(CAToken.CATokenABI))
+	if err != nil {
+		log.Println(err, "@ catokenABI")
 	}
 
+	LogMintedSig := []byte("Minted(address,uint256)")
+	LogDeletedTokensSig := []byte("DeletedTokens(uint256[])")
+	LogMintedSigHash := crypto.Keccak256Hash(LogMintedSig)
+	LogDeletedTokensSigHash := crypto.Keccak256Hash(LogDeletedTokensSig)
+	for _, vLog := range TXlog {
+
+		fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
+		fmt.Printf("Log Index: %d\n", vLog.Index)
+
+		switch vLog.Topics[0].Hex() {
+		case LogMintedSigHash.Hex():
+			fmt.Printf("Log Name: Minted\n")
+			MintedEvent, err := CATokenAbi.Unpack("Minted", vLog.Data)
+			if err != nil {
+				log.Println(err, "@ catokenABI")
+			}
+
+			fmt.Println(MintedEvent...)
+		case LogDeletedTokensSigHash.Hex():
+			fmt.Printf("Log Name: DeletedTokens\n")
+			DeletedTokenEvent, err := CATokenAbi.Unpack("DeletedTokens", vLog.Data)
+			if err != nil {
+				log.Println(err, "@ catokenABI")
+			}
+			fmt.Println(DeletedTokenEvent...)
+		}
+	}
+}
+
+/*
+func (e *Events) eventloggerbyBlock(txhex string, from, to int64) {
 	ConAddr := e.eth.Contract.ContractAddress
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(from),
@@ -43,7 +80,6 @@ func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
 			ConAddr,
 		},
 	}
-
 	logs, err := e.eth.Client.FilterLogs(context.Background(), query)
 	if err != nil {
 		log.Print(err, "at eventlo0gger fileterlogs")
@@ -67,7 +103,7 @@ func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
 
 			var mintEvent LogMinted
 
-			err := CATokenAbi.Unpack(&mintEvent, "Minted", vLog.Data)
+			 := CATokenAbi.Unpack("Minted", vLog.Data)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -82,7 +118,6 @@ func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
 		case LogDeletedTokensSigHash.Hex():
 			fmt.Printf("Log Name: Approval\n")
 
-			var approvalEvent LogApproval
 
 			err := contractAbi.Unpack(&approvalEvent, "Approval", vLog.Data)
 			if err != nil {
@@ -100,3 +135,4 @@ func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
 		fmt.Printf("\n\n")
 	}
 }
+*/
