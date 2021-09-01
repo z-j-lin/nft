@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"go/types"
 	"log"
 	"math/big"
 	"strings"
@@ -28,7 +29,12 @@ type Events struct {
 	eth *blockchain.Ethereum
 }
 
-func (e *Events) eventloggerbyBlock(from, to int64) {
+func (e *Events) eventloggerbyBlock(tx types.Transactions, from, to int64) {
+	receipt, err := e.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+	if err != nil {
+		log.Println(err, "@ eventlogbytx")
+	}
+
 	ConAddr := e.eth.Contract.ContractAddress
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(from),

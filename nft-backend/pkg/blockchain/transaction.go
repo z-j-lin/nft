@@ -59,7 +59,7 @@ func (mtx *MintTx) init_transactOpt() {
 func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
 
 	to := common.HexToAddress(address)
-	Catoken := mtx.contract.instance
+	Catoken := mtx.contract.Instance
 	mtx.init_transactOpt()
 	//set true for testing monitor
 	mtx.Auth.NoSend = true
