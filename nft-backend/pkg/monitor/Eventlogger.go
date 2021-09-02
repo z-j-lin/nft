@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	CAToken "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Token"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
@@ -27,7 +24,7 @@ type Events struct {
 	eth *blockchain.Ethereum
 }
 
-func (e *Events) eventlogByTXHash(txhex string) {
+func (e *Events) EventlogByTXHash(txhex string) {
 	txhash := common.HexToHash(txhex)
 	receipt, err := e.eth.Client.TransactionReceipt(context.TODO(), txhash)
 	if err != nil {
@@ -35,38 +32,28 @@ func (e *Events) eventlogByTXHash(txhex string) {
 	}
 	//gete the logs of the transaction
 	TXlog := receipt.Logs
-
-	CATokenAbi, err := abi.JSON(strings.NewReader(CAToken.CATokenABI))
+	fmt.Println("between txlog and catokenabi", TXlog)
+	//CATokenAbi, err := abi.JSON(strings.NewReader(CAToken.CATokenABI))
 	if err != nil {
 		log.Println(err, "@ catokenABI")
 	}
-
+	//e.eth.Client.TransactionByHash(context.TODO(), txhash)
 	LogMintedSig := []byte("Minted(address,uint256)")
 	LogDeletedTokensSig := []byte("DeletedTokens(uint256[])")
 	LogMintedSigHash := crypto.Keccak256Hash(LogMintedSig)
 	LogDeletedTokensSigHash := crypto.Keccak256Hash(LogDeletedTokensSig)
-	for _, vLog := range TXlog {
-
-		fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
-		fmt.Printf("Log Index: %d\n", vLog.Index)
-
-		switch vLog.Topics[0].Hex() {
-		case LogMintedSigHash.Hex():
-			fmt.Printf("Log Name: Minted\n")
-			MintedEvent, err := CATokenAbi.Unpack("Minted", vLog.Data)
-			if err != nil {
-				log.Println(err, "@ catokenABI")
-			}
-
-			fmt.Println(MintedEvent...)
-		case LogDeletedTokensSigHash.Hex():
-			fmt.Printf("Log Name: DeletedTokens\n")
-			DeletedTokenEvent, err := CATokenAbi.Unpack("DeletedTokens", vLog.Data)
-			if err != nil {
-				log.Println(err, "@ catokenABI")
-			}
-			fmt.Println(DeletedTokenEvent...)
-		}
+	Log := TXlog[1]
+	fmt.Printf("Log Block Number: %d\n", Log.BlockNumber)
+	fmt.Printf("Log Index: %d\n", Log.Index)
+	switch Log.Topics[0].Hex() {
+	case LogMintedSigHash.Hex():
+		//extract the token recipient address
+		RecipientAddr := common.HexToAddress(Log.Topics[1].Hex())
+		tokenID := Log.Topics[2].Big()
+		fmt.Println("Recipient Address:", RecipientAddr)
+		fmt.Println("TokenID:", tokenID)
+	case LogDeletedTokensSigHash.Hex():
+		fmt.Printf("Log Name: DeletedTokens\n")
 	}
 }
 

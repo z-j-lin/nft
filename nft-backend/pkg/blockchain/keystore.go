@@ -54,10 +54,12 @@ func StoreKs() (string, error) {
 	var (
 		password, privateKey string
 	)
+	/*
 	fmt.Printf("Enter a password: ")
 	fmt.Scanf("%s", &password)
 	fmt.Printf("Enter your privateKey: ")
-	fmt.Scanf("%s", &privateKey)
+	fmt.Scanf("%s", &privateKey)*/
+
 	//takes privatekey , returns *ecdsa.PrivateKey
 	ECDSAprivateKey, err := crypto.HexToECDSA(privateKey)
 	if err != nil {

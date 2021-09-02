@@ -31,8 +31,6 @@ func NewTransaction(TokenRecipient, resourceID string, contract *Contract, rdb *
 		db:            rdb,
 	}
 	tranx.resourceID = resourceID
-	fmt.Println("sending")
-
 	tranx.SendTransaction(TokenRecipient, taskStatus)
 	return
 }
@@ -53,6 +51,7 @@ func (mtx *MintTx) init_transactOpt() {
 	auth.Value = big.NewInt(0)
 	auth.GasLimit = uint64(300000)
 	auth.GasPrice = gasPrice
+	
 }
 
 //function to send the transaction
@@ -62,10 +61,10 @@ func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
 	Catoken := mtx.contract.Instance
 	mtx.init_transactOpt()
 	//set true for testing monitor
-	mtx.Auth.NoSend = true
+	mtx.Auth.NoSend = false
 	//sendtx
 	tx, err := Catoken.Mint(mtx.Auth, to)
-	fmt.Println("qpending")
+
 	if err != nil {
 		log.Printf("transaction failed: %v", err)
 		//add the transaction back to the transaction que
@@ -75,8 +74,8 @@ func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
 		fmt.Println("bout to be in qpending")
 		mtx.db.Qpending(tx.Hash().Hex(), address, mtx.resourceID)
 		//takes a item off the numworker channel from the loop function
-		status := <-taskStatus
-		_ = status
+		//status := <-taskStatus
+		//_ = status
 		fmt.Println("transaction added to pending que")
 	}
 }

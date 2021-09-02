@@ -2,7 +2,6 @@ package redisDb
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 )
 
 type Database struct {
-	client *redis.Client
+	Client *redis.Client
 }
 
 //creats a new redis client and returns a point to a Database object holding the client
@@ -81,15 +80,14 @@ func (db *Database) Qpending(txhash, address, resourceID string) error {
 	return nil
 }
 
-func (db *Database) DQpending() (string, string, string) {
+func (db *Database) DQpending() (txHash, account, resourceID string) {
 	//BRPOP from the end of mint
 	Txdetails, err := db.client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
 	if err != nil {
 		log.Println("at DQpending", err)
 	}
-	txHash := Txdetails[1][:66]
-	account := Txdetails[1][66:108]
-	resourceID := Txdetails[1][108:]
-	fmt.Println(Txdetails)
+	txHash = Txdetails[1][:66]
+	account = Txdetails[1][66:108]
+	resourceID = Txdetails[1][108:]
 	return txHash, account, resourceID
 }

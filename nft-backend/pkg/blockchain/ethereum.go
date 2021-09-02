@@ -39,7 +39,10 @@ func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
-	eth.Contract = &Contract{eth: eth}
+	eth.Contract = &Contract{
+		eth: eth,
+		ContractAddress: common.HexToAddress(contractAddress),
+	}
 	eth.Contract.init()
 	return eth, nil
 }
@@ -64,7 +67,7 @@ func (eth *Ethereum) loadaccount() {
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
 	eth.Keystore = ks
-	eth.Account = ks.Accounts()[0]
+	eth.Account = ks.Accounts()[1]
 }
 
 func (eth *Ethereum) unlockkey(account accounts.Account) error {
