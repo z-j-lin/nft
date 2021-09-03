@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	objects "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Objects"
+	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor"
 )
 
 type Database struct {
@@ -27,19 +29,19 @@ func NewDBinstance() (*Database, error) {
 	}
 
 	return &Database{
-		client: rdb,
+		Client: rdb,
 	}, nil
 }
 
 func (db *Database) SetStringVal(key, val string) error {
-	err := db.client.Set(context.TODO(), key, val, 0).Err()
+	err := db.Client.Set(context.TODO(), key, val, 0).Err()
 	if err != nil {
 		panic(err)
 	}
 	return nil
 }
 func (db *Database) getValue(key string) string {
-	val, err := db.client.Get(context.TODO(), "key").Result()
+	val, err := db.Client.Get(context.TODO(), "key").Result()
 	if err != nil {
 		panic(err)
 	}
@@ -52,14 +54,31 @@ func (db *Database) Qmint(address, resourceID string) error {
 	//create a key for the set
 	Job := address + resourceID
 	//push the job on the mintq list
-	db.client.LPush(context.TODO(), "MintQ", Job)
+	db.Client.LPush(context.TODO(), "MintQ", Job)
 	return nil
+}
+
+//
+func (db *Database) SetHighestFinalizedBlock(val string) error {
+	err := db.Client.Set(context.TODO(), "HighestFinalizedBlock", val, 0).Err()
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func (db *Database) GetHighestFinalizedBlock(key string) string {
+	val, err := db.Client.Get(context.TODO(), "HighestFinalizedBlock").Result()
+	if err != nil {
+		panic(err)
+	}
+	return val
 }
 
 //take off the transaction queue
 func (db *Database) DQmint() (account, resourceID string) {
 	//BRPOP from the end of mint
-	Job, err := db.client.BRPop(context.TODO(), 1*time.Second, "MintQ").Result()
+	Job, err := db.Client.BRPop(context.TODO(), 1*time.Second, "MintQ").Result()
 	if err != nil && err != redis.Nil {
 		panic(err)
 	}
@@ -70,19 +89,33 @@ func (db *Database) DQmint() (account, resourceID string) {
 	}
 	return account, resourceID
 }
+func (db *Database) GetState() objects.State {
+	//fetch the state from redisDB
+	db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock")
+
+}
+
+func (db *Database) UpdateState(state *monitor.State) {
+
+}
+
+func (db *Database) QPendingBlock(blocknum uint64) error {
+	db.Client.LPush(context.TODO(), "PendingBlock", blocknum)
+	return nil
+}
 
 //add to pending translist
 //takes in the tx hash, recipient address, resource ID
 func (db *Database) Qpending(txhash, address, resourceID string) error {
 	tx := txhash + address + resourceID
 	//push the job on the mintq list
-	db.client.LPush(context.TODO(), "PendingTX", tx)
+	db.Client.LPush(context.TODO(), "PendingTX", tx)
 	return nil
 }
 
 func (db *Database) DQpending() (txHash, account, resourceID string) {
 	//BRPOP from the end of mint
-	Txdetails, err := db.client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
+	Txdetails, err := db.Client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
 	if err != nil {
 		log.Println("at DQpending", err)
 	}
