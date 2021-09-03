@@ -41,13 +41,6 @@ func (db *Database) SetStringVal(key, val string) error {
 	}
 	return nil
 }
-func (db *Database) getValue(key string) string {
-	val, err := db.Client.Get(context.TODO(), "key").Result()
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
 
 //add to mint queue
 //stores the address in a list
@@ -57,23 +50,6 @@ func (db *Database) Qmint(address, resourceID string) error {
 	//push the job on the mintq list
 	db.Client.LPush(context.TODO(), "MintQ", Job)
 	return nil
-}
-
-//
-func (db *Database) SetHighestFinalizedBlock(val string) error {
-	err := db.Client.Set(context.TODO(), "HighestFinalizedBlock", val, 0).Err()
-	if err != nil {
-		panic(err)
-	}
-	return nil
-}
-
-func (db *Database) GetHighestFinalizedBlock(key string) string {
-	val, err := db.Client.Get(context.TODO(), "HighestFinalizedBlock").Result()
-	if err != nil {
-		panic(err)
-	}
-	return val
 }
 
 //take off the transaction queue
