@@ -59,7 +59,7 @@ func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
 				mon.db.QPendingBlock(currentBlock)
 				state.HighestProcessedBlock = currentBlock
 				//update state on "disk"
-				mon.db.updateState(state * State)
+				ok := mon.db.updateState(state * State)
 			}
 		}
 	}

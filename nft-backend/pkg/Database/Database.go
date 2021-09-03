@@ -2,12 +2,13 @@ package redisDb
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	objects "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Objects"
-	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/monitor"
 )
 
 type Database struct {
@@ -89,14 +90,45 @@ func (db *Database) DQmint() (account, resourceID string) {
 	}
 	return account, resourceID
 }
-func (db *Database) GetState() objects.State {
+func (db *Database) GetState() (*objects.State, error) {
 	//fetch the state from redisDB
-	db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock")
+	StateSlice, err := db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock").Result()
+	if err != nil {
+		panic(err)
+	}
+	var State objects.State
+	State.HighestFinalizedBlock, err = strconv.ParseUint(StateSlice[0].(string), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	State.HighestProcessedBlock, err = strconv.ParseUint(StateSlice[1].(string), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	if StateSlice[1] == nil {
+		logger := log.Default()
+		logger.Println("State does not exist on disk")
+		return nil, fmt.Errorf("state does not exist on disk")
+	}
+	if err != nil {
+		log.Println(err, "@GetState")
+	}
 
+	fmt.Printf("stateSlice: %t\n", StateSlice[0])
+	return &State, nil
 }
 
-func (db *Database) UpdateState(state *monitor.State) {
-
+func (db *Database) UpdateState(state objects.State) (int64, error) {
+	mapp := make(map[string]string)
+	//Hset only takes strings
+	mapp["HighestFinalizedBlock"] = fmt.Sprint(state.HighestFinalizedBlock)
+	mapp["HighestProcessedBlock"] = fmt.Sprint(state.HighestProcessedBlock)
+	result, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
+	if err != nil {
+		log.Println(err, "@DBUpdateState")
+		return result, err
+	}
+	return result, err
 }
 
 func (db *Database) QPendingBlock(blocknum uint64) error {

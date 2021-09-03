@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"fmt"
 	"testing"
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
@@ -20,12 +19,7 @@ func TestStartTXQmon(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mon := NewQmon(db, eth)
-	mon.done = make(chan bool)
+	mon := monitor.NewQmon(db, eth)
 	mon.StartTXQmon()
-	finished := <-mon.done
-	if finished {
-		fmt.Println("finished")
-		return
-	}
+
 }

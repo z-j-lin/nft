@@ -1,7 +1,10 @@
 package redisDb
 
 import (
+	"fmt"
 	"testing"
+
+	objects "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Objects"
 )
 
 func TestQmint(t *testing.T) {
@@ -29,4 +32,32 @@ func TestQmint(t *testing.T) {
 
 	}
 
+}
+
+func TestGetState(t *testing.T) {
+	db, err := NewDBinstance()
+	if err != nil {
+		t.Error(err)
+	}
+	State, err := db.GetState()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(State.HighestFinalizedBlock)
+	fmt.Println(State.HighestProcessedBlock)
+}
+func TestUpdateState(t *testing.T) {
+	db, err := NewDBinstance()
+	State := objects.State{
+		HighestFinalizedBlock: 1,
+		HighestProcessedBlock: 2,
+	}
+	if err != nil {
+		t.Error(err)
+	}
+	ok, err := db.UpdateState(State)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(ok)
 }
