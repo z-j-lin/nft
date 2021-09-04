@@ -48,16 +48,15 @@ func TestGetState(t *testing.T) {
 }
 func TestUpdateState(t *testing.T) {
 	db, err := NewDBinstance()
-	State := objects.State{
+	if err != nil {
+		t.Error(err)
+	}
+	State := &objects.State{
 		HighestFinalizedBlock: 1,
 		HighestProcessedBlock: 2,
 	}
+	err = db.UpdateState(State)
 	if err != nil {
 		t.Error(err)
 	}
-	ok, err := db.UpdateState(State)
-	if err != nil {
-		t.Error(err)
-	}
-	fmt.Println(ok)
 }

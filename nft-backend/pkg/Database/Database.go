@@ -72,7 +72,7 @@ func (db *Database) GetState() (*objects.State, error) {
 	if err != nil {
 		panic(err)
 	}
-	var State objects.State
+	var State *objects.State
 	State.HighestFinalizedBlock, err = strconv.ParseUint(StateSlice[0].(string), 10, 64)
 	if err != nil {
 		panic(err)
@@ -91,20 +91,20 @@ func (db *Database) GetState() (*objects.State, error) {
 	}
 
 	fmt.Printf("stateSlice: %t\n", StateSlice[0])
-	return &State, nil
+	return State, nil
 }
 
-func (db *Database) UpdateState(state objects.State) (int64, error) {
+func (db *Database) UpdateState(state *objects.State) error {
 	mapp := make(map[string]string)
 	//Hset only takes strings
 	mapp["HighestFinalizedBlock"] = fmt.Sprint(state.HighestFinalizedBlock)
 	mapp["HighestProcessedBlock"] = fmt.Sprint(state.HighestProcessedBlock)
-	result, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
+	_, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
 	if err != nil {
 		log.Println(err, "@DBUpdateState")
-		return result, err
+		return err
 	}
-	return result, err
+	return err
 }
 
 func (db *Database) QPendingBlock(blocknum uint64) error {
@@ -112,23 +112,55 @@ func (db *Database) QPendingBlock(blocknum uint64) error {
 	return nil
 }
 
-//add to pending translist
-//takes in the tx hash, recipient address, resource ID
-func (db *Database) Qpending(txhash, address, resourceID string) error {
-	tx := txhash + address + resourceID
-	//push the job on the mintq list
-	db.Client.LPush(context.TODO(), "PendingTX", tx)
-	return nil
-}
-
-func (db *Database) DQpending() (txHash, account, resourceID string) {
+func (db *Database) DQpendingBlock() (Blocknum uint64) {
 	//BRPOP from the end of mint
-	Txdetails, err := db.Client.BRPop(context.TODO(), 1*time.Second, "PendingTX").Result()
+	blocknum, err := db.Client.BRPop(context.TODO(), 1*time.Second, "PendingBlock").Result()
 	if err != nil {
 		log.Println("at DQpending", err)
 	}
-	txHash = Txdetails[1][:66]
-	account = Txdetails[1][66:108]
-	resourceID = Txdetails[1][108:]
-	return txHash, account, resourceID
+	Blocknum, err = strconv.ParseUint(blocknum[0], 10, 64)
+	if err != nil {
+		log.Panicf("failed to convert blocknum to uint: %v", err)
+	}
+	return
+}
+
+/*ownership store
+each address gets a hmap
+in the hmap each fied is a tokenID refrencing resourceID
+*/
+func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) {
+	//
+	data := make(map[string]string)
+	data[tokenID] = resourceID
+	_, err := db.Client.HSet(context.TODO(), accountAddr, data).Result()
+	if err != nil {
+		panic(err)
+	}
+	// add tokenID to the resourceID set
+	err = db.Client.SAdd(context.TODO(), resourceID, tokenID).Err()
+	if err != nil {
+		panic(err)
+	}
+	//add token to collective token sorted set using expiration date to make the rank
+	currentDay, err := db.Client.Get(context.TODO(), "day").Float64()
+	if err != nil {
+		panic(err)
+	}
+	element := &redis.Z{Score: currentDay + days2Live, Member: tokenID}
+	//this is used to get the delete token array for burning tokens
+	db.Client.ZAdd(context.TODO(), "Collective", element)
+}
+
+/*resource access store
+make a set with resourceID as key, store tokenID in the set
+on request of resource
+*/
+func (db *Database) RemoveToken(tokenID, OwnerAddr string) {
+	//get resourceID from account map
+	resourceID := db.Client.HMGet(context.TODO(), OwnerAddr, tokenID).String()
+	//delete TokenID from resource set
+	db.Client.SRem(context.TODO(), resourceID, tokenID)
+	//delete tokenID from owner hash map
+	db.Client.HDel(context.TODO(), OwnerAddr, tokenID)
 }
