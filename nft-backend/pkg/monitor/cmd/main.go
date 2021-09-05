@@ -23,10 +23,11 @@ func main() {
 	}
 	//start the que monitor
 	qmon := monitor.NewQmon(rdb, eth)
-	//start monitoring the tx que list in the MintQ list on redisDB
+	//start monitoring the MintQ list on redisDB
 	qmon.StartTXQmon()
-	for {
-
-	}
+	//start the block monitor
+	Bmon := monitor.NewBlockMon(eth)
+	//start the monitor
+	Bmon.Startmon()
 
 }

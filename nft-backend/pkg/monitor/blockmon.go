@@ -12,28 +12,41 @@ import (
 
 type monitor struct {
 	eth   *blockchain.Ethereum
-	db    redisDb.Database
+	db    *redisDb.Database
 	state *objects.State
 }
 
-func (mon *monitor) startmon() <-chan bool {
+func NewBlockMon(ether *blockchain.Ethereum) *monitor {
+	rdb, err := redisDb.NewDBinstance()
+	if err != nil {
+		log.Fatalf("failed to connect with redisdb: %v", err)
+	}
+	return &monitor{
+		eth: ether,
+		db:  rdb,
+	}
+}
+func (mon *monitor) Startmon() <-chan bool {
 	//find the initial state in db
 	//if initial state is not in db
 	initState, err := mon.db.GetState()
+	mon.state = initState
 	if err != nil {
 		RootBlock := uint64(10910043)
 		initState = &objects.State{
 			HighestFinalizedBlock: RootBlock,
 			HighestProcessedBlock: RootBlock,
 		}
+		mon.state = initState
 	}
 	//might not need this
 	killChan := make(chan bool)
-	go mon.monitorloop(initState, killChan)
+	go mon.monitorloop(mon.state, killChan)
 	//DO i need this?
 	return killChan
 }
 
+//this function querys for a block every 5 seconds
 func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
 	for {
 		select {
@@ -58,7 +71,7 @@ func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
 				//queue the pendingblock
 				mon.db.QPendingBlock(currentBlock)
 				state.HighestProcessedBlock = currentBlock
-				//update state on "disk"
+				//update state on redis
 				err := mon.db.UpdateState(state)
 				if err != nil {
 					log.Fatal("unable to update state", err)

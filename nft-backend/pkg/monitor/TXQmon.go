@@ -12,7 +12,6 @@ type TXQmon struct {
 	eth           *blockchain.Ethereum
 	MintQ         chan [2]string
 	PendingBlockQ chan uint64
-	done          chan bool
 	QMANI         bool
 	QBMANI        bool
 }
@@ -55,9 +54,8 @@ func (qmon *TXQmon) TXloop() {
 		//in the function that uses qmint, publishes a message everytime
 		qmon.QueryMintQ()
 		//check if there is a pending transaction
-
+		qmon.QueryPendingBlockQ()
 		//if there is a pending transaction get the transaction logs
-		//if the currrent block is 30 more than the transaction logs
 	}
 }
 
@@ -66,9 +64,9 @@ func (qmon *TXQmon) QueryMintQ() {
 	var txinfo [2]string
 	account, resourceID := qmon.db.DQmint()
 	if account != "" {
-		if !qmon.TM {
-			go qmon.taskmanager()
-			qmon.TM = true
+		if !qmon.QMANI {
+			go qmon.txqmanager(qmon.MintQ)
+			qmon.QMANI = true
 		}
 		//channel the transaction information to the TX manager
 		txinfo[0] = account
@@ -78,21 +76,20 @@ func (qmon *TXQmon) QueryMintQ() {
 }
 
 //this works a little too complicated can be simpler, im over it rn
-func (qmon *TXQmon) taskManager() {
+func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
 	numWorkers := make(chan bool, 3)
 	for {
 		//if this channel buffer is full it blocks, no new task is created until a task finishes
 		numWorkers <- true
 		select {
 		//start a Transaction
-		case tx, more := <-MintQ:
+		case tx := <-MintQ:
 			//if nothing is in the mintq kill the manager
 			//start a mint worker
 			go blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, numWorkers)
-			if !more {
-				qmon.QMANI = false
-				return
-			}
+		default:
+			qmon.QMANI = false
+			return
 		}
 	}
 }
@@ -116,16 +113,14 @@ func (qmon *TXQmon) ValManager(BlockQ chan uint64) {
 		numWorkers <- true
 		select {
 		//start a Transaction
-		case Blocknum, more := <-BlockQ:
-
+		case Blocknum := <-BlockQ:
 			//start a mint worker
 			num := big.NewInt(int64(Blocknum))
 			go NewValidator(qmon.eth, num, numWorkers)
+		default:
 			//if nothing is in the mintq kill the manager
-			if !more {
-				qmon.QBMANI = false
-				return
-			}
+			qmon.QBMANI = false
+			return
 		}
 	}
 }

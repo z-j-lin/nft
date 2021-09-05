@@ -34,14 +34,6 @@ func NewDBinstance() (*Database, error) {
 	}, nil
 }
 
-func (db *Database) SetStringVal(key, val string) error {
-	err := db.Client.Set(context.TODO(), key, val, 0).Err()
-	if err != nil {
-		panic(err)
-	}
-	return nil
-}
-
 //add to mint queue
 //stores the address in a list
 func (db *Database) Qmint(address, resourceID string) error {
@@ -66,6 +58,21 @@ func (db *Database) DQmint() (account, resourceID string) {
 	}
 	return account, resourceID
 }
+
+//this function can add or just update blockmon state
+func (db *Database) UpdateState(state *objects.State) error {
+	mapp := make(map[string]string)
+	//Hset only takes strings
+	mapp["HighestFinalizedBlock"] = fmt.Sprint(state.HighestFinalizedBlock)
+	mapp["HighestProcessedBlock"] = fmt.Sprint(state.HighestProcessedBlock)
+	_, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
+	if err != nil {
+		log.Println(err, "@DBUpdateState")
+		return err
+	}
+	return err
+}
+
 func (db *Database) GetState() (*objects.State, error) {
 	//fetch the state from redisDB
 	StateSlice, err := db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock").Result()
@@ -94,19 +101,6 @@ func (db *Database) GetState() (*objects.State, error) {
 	return State, nil
 }
 
-func (db *Database) UpdateState(state *objects.State) error {
-	mapp := make(map[string]string)
-	//Hset only takes strings
-	mapp["HighestFinalizedBlock"] = fmt.Sprint(state.HighestFinalizedBlock)
-	mapp["HighestProcessedBlock"] = fmt.Sprint(state.HighestProcessedBlock)
-	_, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
-	if err != nil {
-		log.Println(err, "@DBUpdateState")
-		return err
-	}
-	return err
-}
-
 func (db *Database) QPendingBlock(blocknum uint64) error {
 	db.Client.LPush(context.TODO(), "PendingBlock", blocknum)
 	return nil
@@ -130,37 +124,52 @@ each address gets a hmap
 in the hmap each fied is a tokenID refrencing resourceID
 */
 func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) {
-	//
-	data := make(map[string]string)
-	data[tokenID] = resourceID
-	_, err := db.Client.HSet(context.TODO(), accountAddr, data).Result()
+	//each token has a hash map with the tokenID as the key
+	//holds resource ID owners address
+	//the days2live will be stored sorted set
+	TokenHashData := make(map[string]string)
+	TokenHashData["resource"] = resourceID
+	TokenHashData["Owner"] = accountAddr
+	//create a tokenID map with tokenID as key, with fields resourceID, AccountOwners
+	//used for serving content ownership array to the client provided the tokenID array
+	//this is also used to verify access rights
+	err := db.Client.HSet(context.TODO(), tokenID, TokenHashData).Err()
+
 	if err != nil {
-		panic(err)
+		log.Panicf("failed to create token hash: %v", err)
 	}
-	// add tokenID to the resourceID set
-	err = db.Client.SAdd(context.TODO(), resourceID, tokenID).Err()
+	//stores tokenID into owners set. this is done so we dont have to iterate through all the takenID hashmaps to find tokens
+	//this is used for loading the owned page on the client side
+	err = db.Client.SAdd(context.TODO(), accountAddr, tokenID).Err()
 	if err != nil {
-		panic(err)
+		log.Panicf("failed to store tokenID into owners set: %v", err)
 	}
-	//add token to collective token sorted set using expiration date to make the rank
+	//add token to collective token sorted set ranked by expiration date
 	currentDay, err := db.Client.Get(context.TODO(), "day").Float64()
 	if err != nil {
-		panic(err)
+		log.Panicf("failed to get the current day from redisDB: %v", err)
 	}
 	element := &redis.Z{Score: currentDay + days2Live, Member: tokenID}
 	//this is used to get the delete token array for burning tokens
-	db.Client.ZAdd(context.TODO(), "Collective", element)
+	//the collection is token ID ranked with days2live
+	err = db.Client.ZAdd(context.TODO(), "Collective", element).Err()
+	if err != nil {
+		log.Panicf("failed to add the tokenID to the collective set: %v", err)
+	}
 }
 
-/*resource access store
-make a set with resourceID as key, store tokenID in the set
-on request of resource
-*/
-func (db *Database) RemoveToken(tokenID, OwnerAddr string) {
-	//get resourceID from account map
-	resourceID := db.Client.HMGet(context.TODO(), OwnerAddr, tokenID).String()
-	//delete TokenID from resource set
-	db.Client.SRem(context.TODO(), resourceID, tokenID)
-	//delete tokenID from owner hash map
-	db.Client.HDel(context.TODO(), OwnerAddr, tokenID)
+//this function is used when a burn a burn happened
+func (db *Database) RemoveToken(tokenID string) {
+	//get Account from token map
+	OwnerAddress := db.Client.HMGet(context.TODO(), tokenID, "Account").String()
+	//delete tokenID from owner set
+	err := db.Client.SRem(context.TODO(), OwnerAddress, tokenID).Err()
+	if err != nil {
+		log.Panicf("failed to delete token from account owner set: %v", err)
+	}
+	//delete token hash map
+	err = db.Client.HDel(context.TODO(), tokenID).Err()
+	if err != nil {
+		log.Panicf("failed to delete token from hashmap: %v", err)
+	}
 }

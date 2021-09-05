@@ -29,9 +29,7 @@ func TestQmint(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-
 	}
-
 }
 
 func TestGetState(t *testing.T) {
@@ -47,6 +45,7 @@ func TestGetState(t *testing.T) {
 	fmt.Println(State.HighestProcessedBlock)
 }
 func TestUpdateState(t *testing.T) {
+
 	db, err := NewDBinstance()
 	if err != nil {
 		t.Error(err)
@@ -59,4 +58,10 @@ func TestUpdateState(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	//get the state
+	state, err := db.GetState()
+	if err != nil {
+		t.Error(err)
+	}
+	//assert.Equal(t, state, State)
 }
