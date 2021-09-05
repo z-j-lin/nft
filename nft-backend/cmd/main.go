@@ -72,16 +72,7 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 	rdb.Qmint(buy.Account, buy.resourceID)
 }
 
-//if the current transaction count is 30 above last transaction
-//
-func VerifyTransactionMint() {
-}
-
-//use a hash to store token information on redis
-// HASHKEY tokenID buy day, expire day,
-//store tokenID key chain as Hash map
-//use HVALS to extract tokenIDs
-//sends the client a list of tokens owned by the address and associated resource ID
+//on request send back access tokens to user
 func LoadAccessTokens(w http.ResponseWriter, r *http.Request) {
 	//extract the user account
 	//querrry redis db for tokens owned by account

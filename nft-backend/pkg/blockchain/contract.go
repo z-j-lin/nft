@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"log"
 	"math/big"
 
@@ -42,8 +43,16 @@ func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Addre
 	return tx, err
 }
 
-func (c *Contract) DeleteTokens(Auth *bind.TransactOpts, IDs []*big.Int) (*types.Transaction, error) {
-	tx, err := c.Instance.ExpiredContracts(Auth, IDs)
+func (c *Contract) DeleteTokens(auth *bind.TransactOpts, IDs []*big.Int) (*types.Transaction, error) {
+	gasPrice, err := c.eth.Client.SuggestGasPrice(context.Background())
+	fromAddress := c.eth.Account.Address
+	nonce, err := c.eth.Client.PendingNonceAt(context.Background(), fromAddress)
+	//options for transaction
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(300000)
+	auth.GasPrice = gasPrice
+	tx, err := c.Instance.ExpiredContracts(auth, IDs)
 	if err != nil {
 		log.Println("failed to send transaction @ DeleteTokens:", err)
 		return nil, err
