@@ -7,6 +7,10 @@ import "./contracts/utils/Counters.sol";
 import "./contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "./contracts/access/AccessControlEnumerable.sol";
 
+interface ExpiredContracts{
+    function expiredContracts(uint256[] memory deleteIds) external;
+} 
+
 contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
     using Counters for Counters.Counter;
     //expiring token count
@@ -52,7 +56,7 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
             "this is awkward, you're not allowed to do that"
         );
         //batch delete the tokens
-        for (uint256 i = 0; i <= deleteIds.length; i++) {
+        for (uint256 i = 0; i < deleteIds.length; i++) {
             _burn(deleteIds[i]);
         }
         emit DeletedTokens(deleteIds); 

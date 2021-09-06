@@ -1,0 +1,1538 @@
+{
+  "contractName": "SignatureChecker",
+  "abi": [],
+  "metadata": "{\"compiler\":{\"version\":\"0.8.6+commit.11564f7e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"details\":\"Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and ERC1271 contract sigantures. Using this instead of ECDSA.recover in your contract will make them compatible with smart contract wallets such as Argent and Gnosis. Note: unlike ECDSA signatures, contract signature's are revocable, and the outcome of this function can thus change through time. It could return true at block N and false at block N+1 (or the opposite). _Available since v4.1._\",\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/contracts/utils/cryptography/SignatureChecker.sol\":\"SignatureChecker\"},\"evmVersion\":\"berlin\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/contracts/interfaces/IERC1271.sol\":{\"keccak256\":\"0x14351164423eade7f2dbac5ca9ab8aeded8694f3b2d7a9e0114a2b3b6558198d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7588d5d5a23ccdccfb39eb015939560bdc26fd11efb7e5ff8af23f5a3ce8b003\",\"dweb:/ipfs/QmRuohtRJYDoFGazYwbcbz557HzmQDWuW9phW6Cm8tQhwN\"]},\"project:/contracts/contracts/utils/Address.sol\":{\"keccak256\":\"0x3b4820cac4f127869f6eb496c1d74fa6ac86ed24071e0f94742e6aef20e7252c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://23e1c7303c30a2ef9c9b3f861cda15c78e4c9697b4a7988f2bf7b21c392a02fb\",\"dweb:/ipfs/QmWQJh5MsXJZjSTzAs9n5gtrqWYgXwkBa6xfwD5KKGQgSC\"]},\"project:/contracts/contracts/utils/cryptography/ECDSA.sol\":{\"keccak256\":\"0x828774372910d18e7337bc31a288d786748af4cd9da80222467e486ed1d569ab\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e842b3d6847ba32ca4f67c91d46ccb3996f3ff923266913e4b0bcda006e07536\",\"dweb:/ipfs/QmWkaboTtbEz3aazAqhHfn9TLrQNQZQckNHC16jLbezMWc\"]},\"project:/contracts/contracts/utils/cryptography/SignatureChecker.sol\":{\"keccak256\":\"0x8e3005e7f5378a996255c08e0fa7ed154ad12f4cb2558b42dbe00385a0d1d37c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://559bc5181ac8d92cc431b881b20969eaf01969bb76115b37b14fc9c502130b5c\",\"dweb:/ipfs/QmcXJcMVCFmUNWQXoWyR6dDu5KyboUpnZzN2yyWAksX5td\"]}},\"version\":1}",
+  "bytecode": "0x60566050600b82828239805160001a6073146043577f4e487b7100000000000000000000000000000000000000000000000000000000600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220897d3b0e2368faa8f474890de01027ca4cbe8823fe8b75666dd70165e82ade0f64736f6c63430008060033",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220897d3b0e2368faa8f474890de01027ca4cbe8823fe8b75666dd70165e82ade0f64736f6c63430008060033",
+  "immutableReferences": {},
+  "generatedSources": [],
+  "deployedGeneratedSources": [],
+  "sourceMap": "685:556:177:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+  "deployedSourceMap": "685:556:177:-:0;;;;;;;;",
+  "source": "// SPDX-License-Identifier: MIT\n\npragma solidity ^0.8.0;\n\nimport \"./ECDSA.sol\";\nimport \"../Address.sol\";\nimport \"../../interfaces/IERC1271.sol\";\n\n/**\n * @dev Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and\n * ERC1271 contract sigantures. Using this instead of ECDSA.recover in your contract will make them compatible with\n * smart contract wallets such as Argent and Gnosis.\n *\n * Note: unlike ECDSA signatures, contract signature's are revocable, and the outcome of this function can thus change\n * through time. It could return true at block N and false at block N+1 (or the opposite).\n *\n * _Available since v4.1._\n */\nlibrary SignatureChecker {\n    function isValidSignatureNow(\n        address signer,\n        bytes32 hash,\n        bytes memory signature\n    ) internal view returns (bool) {\n        if (Address.isContract(signer)) {\n            try IERC1271(signer).isValidSignature(hash, signature) returns (bytes4 magicValue) {\n                return magicValue == IERC1271(signer).isValidSignature.selector;\n            } catch {\n                return false;\n            }\n        } else {\n            return ECDSA.recover(hash, signature) == signer;\n        }\n    }\n}\n",
+  "sourcePath": "/home/zj/Documents/nft/Token/contracts/contracts/utils/cryptography/SignatureChecker.sol",
+  "ast": {
+    "absolutePath": "project:/contracts/contracts/utils/cryptography/SignatureChecker.sol",
+    "exportedSymbols": {
+      "Address": [
+        11853
+      ],
+      "ECDSA": [
+        12645
+      ],
+      "IERC1271": [
+        2153
+      ],
+      "SignatureChecker": [
+        12775
+      ]
+    },
+    "id": 12776,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 12718,
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "33:23:177"
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/utils/cryptography/ECDSA.sol",
+        "file": "./ECDSA.sol",
+        "id": 12719,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 12646,
+        "src": "58:21:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/utils/Address.sol",
+        "file": "../Address.sol",
+        "id": 12720,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 11854,
+        "src": "80:24:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/interfaces/IERC1271.sol",
+        "file": "../../interfaces/IERC1271.sol",
+        "id": 12721,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 2154,
+        "src": "105:39:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "library",
+        "documentation": {
+          "id": 12722,
+          "nodeType": "StructuredDocumentation",
+          "src": "146:538:177",
+          "text": " @dev Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and\n ERC1271 contract sigantures. Using this instead of ECDSA.recover in your contract will make them compatible with\n smart contract wallets such as Argent and Gnosis.\n Note: unlike ECDSA signatures, contract signature's are revocable, and the outcome of this function can thus change\n through time. It could return true at block N and false at block N+1 (or the opposite).\n _Available since v4.1._"
+        },
+        "fullyImplemented": true,
+        "id": 12775,
+        "linearizedBaseContracts": [
+          12775
+        ],
+        "name": "SignatureChecker",
+        "nameLocation": "693:16:177",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": {
+              "id": 12773,
+              "nodeType": "Block",
+              "src": "858:381:177",
+              "statements": [
+                {
+                  "condition": {
+                    "arguments": [
+                      {
+                        "id": 12735,
+                        "name": "signer",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 12724,
+                        "src": "891:6:177",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "id": 12733,
+                        "name": "Address",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11853,
+                        "src": "872:7:177",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_contract$_Address_$11853_$",
+                          "typeString": "type(library Address)"
+                        }
+                      },
+                      "id": 12734,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "isContract",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 11577,
+                      "src": "872:18:177",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_view$_t_address_$returns$_t_bool_$",
+                        "typeString": "function (address) view returns (bool)"
+                      }
+                    },
+                    "id": 12736,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "872:26:177",
+                    "tryCall": false,
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "falseBody": {
+                    "id": 12771,
+                    "nodeType": "Block",
+                    "src": "1161:72:177",
+                    "statements": [
+                      {
+                        "expression": {
+                          "commonType": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          },
+                          "id": 12769,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "leftExpression": {
+                            "arguments": [
+                              {
+                                "id": 12765,
+                                "name": "hash",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12726,
+                                "src": "1196:4:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_bytes32",
+                                  "typeString": "bytes32"
+                                }
+                              },
+                              {
+                                "id": 12766,
+                                "name": "signature",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12728,
+                                "src": "1202:9:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_bytes_memory_ptr",
+                                  "typeString": "bytes memory"
+                                }
+                              }
+                            ],
+                            "expression": {
+                              "argumentTypes": [
+                                {
+                                  "typeIdentifier": "t_bytes32",
+                                  "typeString": "bytes32"
+                                },
+                                {
+                                  "typeIdentifier": "t_bytes_memory_ptr",
+                                  "typeString": "bytes memory"
+                                }
+                              ],
+                              "expression": {
+                                "id": 12763,
+                                "name": "ECDSA",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12645,
+                                "src": "1182:5:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_contract$_ECDSA_$12645_$",
+                                  "typeString": "type(library ECDSA)"
+                                }
+                              },
+                              "id": 12764,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "lValueRequested": false,
+                              "memberName": "recover",
+                              "nodeType": "MemberAccess",
+                              "referencedDeclaration": 12523,
+                              "src": "1182:13:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_function_internal_pure$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_address_$",
+                                "typeString": "function (bytes32,bytes memory) pure returns (address)"
+                              }
+                            },
+                            "id": 12767,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": false,
+                            "kind": "functionCall",
+                            "lValueRequested": false,
+                            "names": [],
+                            "nodeType": "FunctionCall",
+                            "src": "1182:30:177",
+                            "tryCall": false,
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "nodeType": "BinaryOperation",
+                          "operator": "==",
+                          "rightExpression": {
+                            "id": 12768,
+                            "name": "signer",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 12724,
+                            "src": "1216:6:177",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "src": "1182:40:177",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bool",
+                            "typeString": "bool"
+                          }
+                        },
+                        "functionReturnParameters": 12732,
+                        "id": 12770,
+                        "nodeType": "Return",
+                        "src": "1175:47:177"
+                      }
+                    ]
+                  },
+                  "id": 12772,
+                  "nodeType": "IfStatement",
+                  "src": "868:365:177",
+                  "trueBody": {
+                    "id": 12762,
+                    "nodeType": "Block",
+                    "src": "900:255:177",
+                    "statements": [
+                      {
+                        "clauses": [
+                          {
+                            "block": {
+                              "id": 12755,
+                              "nodeType": "Block",
+                              "src": "997:96:177",
+                              "statements": [
+                                {
+                                  "expression": {
+                                    "commonType": {
+                                      "typeIdentifier": "t_bytes4",
+                                      "typeString": "bytes4"
+                                    },
+                                    "id": 12753,
+                                    "isConstant": false,
+                                    "isLValue": false,
+                                    "isPure": false,
+                                    "lValueRequested": false,
+                                    "leftExpression": {
+                                      "id": 12747,
+                                      "name": "magicValue",
+                                      "nodeType": "Identifier",
+                                      "overloadedDeclarations": [],
+                                      "referencedDeclaration": 12745,
+                                      "src": "1022:10:177",
+                                      "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes4",
+                                        "typeString": "bytes4"
+                                      }
+                                    },
+                                    "nodeType": "BinaryOperation",
+                                    "operator": "==",
+                                    "rightExpression": {
+                                      "expression": {
+                                        "expression": {
+                                          "arguments": [
+                                            {
+                                              "id": 12749,
+                                              "name": "signer",
+                                              "nodeType": "Identifier",
+                                              "overloadedDeclarations": [],
+                                              "referencedDeclaration": 12724,
+                                              "src": "1045:6:177",
+                                              "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                              }
+                                            }
+                                          ],
+                                          "expression": {
+                                            "argumentTypes": [
+                                              {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                              }
+                                            ],
+                                            "id": 12748,
+                                            "name": "IERC1271",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 2153,
+                                            "src": "1036:8:177",
+                                            "typeDescriptions": {
+                                              "typeIdentifier": "t_type$_t_contract$_IERC1271_$2153_$",
+                                              "typeString": "type(contract IERC1271)"
+                                            }
+                                          },
+                                          "id": 12750,
+                                          "isConstant": false,
+                                          "isLValue": false,
+                                          "isPure": false,
+                                          "kind": "typeConversion",
+                                          "lValueRequested": false,
+                                          "names": [],
+                                          "nodeType": "FunctionCall",
+                                          "src": "1036:16:177",
+                                          "tryCall": false,
+                                          "typeDescriptions": {
+                                            "typeIdentifier": "t_contract$_IERC1271_$2153",
+                                            "typeString": "contract IERC1271"
+                                          }
+                                        },
+                                        "id": 12751,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "lValueRequested": false,
+                                        "memberName": "isValidSignature",
+                                        "nodeType": "MemberAccess",
+                                        "referencedDeclaration": 2152,
+                                        "src": "1036:33:177",
+                                        "typeDescriptions": {
+                                          "typeIdentifier": "t_function_external_view$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_bytes4_$",
+                                          "typeString": "function (bytes32,bytes memory) view external returns (bytes4)"
+                                        }
+                                      },
+                                      "id": 12752,
+                                      "isConstant": false,
+                                      "isLValue": false,
+                                      "isPure": false,
+                                      "lValueRequested": false,
+                                      "memberName": "selector",
+                                      "nodeType": "MemberAccess",
+                                      "src": "1036:42:177",
+                                      "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes4",
+                                        "typeString": "bytes4"
+                                      }
+                                    },
+                                    "src": "1022:56:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bool",
+                                      "typeString": "bool"
+                                    }
+                                  },
+                                  "functionReturnParameters": 12732,
+                                  "id": 12754,
+                                  "nodeType": "Return",
+                                  "src": "1015:63:177"
+                                }
+                              ]
+                            },
+                            "errorName": "",
+                            "id": 12756,
+                            "nodeType": "TryCatchClause",
+                            "parameters": {
+                              "id": 12746,
+                              "nodeType": "ParameterList",
+                              "parameters": [
+                                {
+                                  "constant": false,
+                                  "id": 12745,
+                                  "mutability": "mutable",
+                                  "name": "magicValue",
+                                  "nameLocation": "985:10:177",
+                                  "nodeType": "VariableDeclaration",
+                                  "scope": 12756,
+                                  "src": "978:17:177",
+                                  "stateVariable": false,
+                                  "storageLocation": "default",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes4",
+                                    "typeString": "bytes4"
+                                  },
+                                  "typeName": {
+                                    "id": 12744,
+                                    "name": "bytes4",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "978:6:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bytes4",
+                                      "typeString": "bytes4"
+                                    }
+                                  },
+                                  "visibility": "internal"
+                                }
+                              ],
+                              "src": "977:19:177"
+                            },
+                            "src": "969:124:177"
+                          },
+                          {
+                            "block": {
+                              "id": 12759,
+                              "nodeType": "Block",
+                              "src": "1100:45:177",
+                              "statements": [
+                                {
+                                  "expression": {
+                                    "hexValue": "66616c7365",
+                                    "id": 12757,
+                                    "isConstant": false,
+                                    "isLValue": false,
+                                    "isPure": true,
+                                    "kind": "bool",
+                                    "lValueRequested": false,
+                                    "nodeType": "Literal",
+                                    "src": "1125:5:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bool",
+                                      "typeString": "bool"
+                                    },
+                                    "value": "false"
+                                  },
+                                  "functionReturnParameters": 12732,
+                                  "id": 12758,
+                                  "nodeType": "Return",
+                                  "src": "1118:12:177"
+                                }
+                              ]
+                            },
+                            "errorName": "",
+                            "id": 12760,
+                            "nodeType": "TryCatchClause",
+                            "src": "1094:51:177"
+                          }
+                        ],
+                        "externalCall": {
+                          "arguments": [
+                            {
+                              "id": 12741,
+                              "name": "hash",
+                              "nodeType": "Identifier",
+                              "overloadedDeclarations": [],
+                              "referencedDeclaration": 12726,
+                              "src": "952:4:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_bytes32",
+                                "typeString": "bytes32"
+                              }
+                            },
+                            {
+                              "id": 12742,
+                              "name": "signature",
+                              "nodeType": "Identifier",
+                              "overloadedDeclarations": [],
+                              "referencedDeclaration": 12728,
+                              "src": "958:9:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_bytes_memory_ptr",
+                                "typeString": "bytes memory"
+                              }
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_bytes32",
+                                "typeString": "bytes32"
+                              },
+                              {
+                                "typeIdentifier": "t_bytes_memory_ptr",
+                                "typeString": "bytes memory"
+                              }
+                            ],
+                            "expression": {
+                              "arguments": [
+                                {
+                                  "id": 12738,
+                                  "name": "signer",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 12724,
+                                  "src": "927:6:177",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_address",
+                                    "typeString": "address"
+                                  }
+                                }
+                              ],
+                              "expression": {
+                                "argumentTypes": [
+                                  {
+                                    "typeIdentifier": "t_address",
+                                    "typeString": "address"
+                                  }
+                                ],
+                                "id": 12737,
+                                "name": "IERC1271",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 2153,
+                                "src": "918:8:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_contract$_IERC1271_$2153_$",
+                                  "typeString": "type(contract IERC1271)"
+                                }
+                              },
+                              "id": 12739,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "kind": "typeConversion",
+                              "lValueRequested": false,
+                              "names": [],
+                              "nodeType": "FunctionCall",
+                              "src": "918:16:177",
+                              "tryCall": false,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_contract$_IERC1271_$2153",
+                                "typeString": "contract IERC1271"
+                              }
+                            },
+                            "id": 12740,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": false,
+                            "lValueRequested": false,
+                            "memberName": "isValidSignature",
+                            "nodeType": "MemberAccess",
+                            "referencedDeclaration": 2152,
+                            "src": "918:33:177",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_function_external_view$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_bytes4_$",
+                              "typeString": "function (bytes32,bytes memory) view external returns (bytes4)"
+                            }
+                          },
+                          "id": 12743,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "kind": "functionCall",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "918:50:177",
+                          "tryCall": true,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes4",
+                            "typeString": "bytes4"
+                          }
+                        },
+                        "id": 12761,
+                        "nodeType": "TryStatement",
+                        "src": "914:231:177"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "id": 12774,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "isValidSignatureNow",
+            "nameLocation": "725:19:177",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 12729,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 12724,
+                  "mutability": "mutable",
+                  "name": "signer",
+                  "nameLocation": "762:6:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "754:14:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 12723,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "754:7:177",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 12726,
+                  "mutability": "mutable",
+                  "name": "hash",
+                  "nameLocation": "786:4:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "778:12:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 12725,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "778:7:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 12728,
+                  "mutability": "mutable",
+                  "name": "signature",
+                  "nameLocation": "813:9:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "800:22:177",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_memory_ptr",
+                    "typeString": "bytes"
+                  },
+                  "typeName": {
+                    "id": 12727,
+                    "name": "bytes",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "800:5:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage_ptr",
+                      "typeString": "bytes"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "744:84:177"
+            },
+            "returnParameters": {
+              "id": 12732,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 12731,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nameLocation": "-1:-1:-1",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "852:4:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 12730,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "852:4:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "851:6:177"
+            },
+            "scope": 12775,
+            "src": "716:523:177",
+            "stateMutability": "view",
+            "virtual": false,
+            "visibility": "internal"
+          }
+        ],
+        "scope": 12776,
+        "src": "685:556:177",
+        "usedErrors": []
+      }
+    ],
+    "src": "33:1209:177"
+  },
+  "legacyAST": {
+    "absolutePath": "project:/contracts/contracts/utils/cryptography/SignatureChecker.sol",
+    "exportedSymbols": {
+      "Address": [
+        11853
+      ],
+      "ECDSA": [
+        12645
+      ],
+      "IERC1271": [
+        2153
+      ],
+      "SignatureChecker": [
+        12775
+      ]
+    },
+    "id": 12776,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 12718,
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "33:23:177"
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/utils/cryptography/ECDSA.sol",
+        "file": "./ECDSA.sol",
+        "id": 12719,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 12646,
+        "src": "58:21:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/utils/Address.sol",
+        "file": "../Address.sol",
+        "id": 12720,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 11854,
+        "src": "80:24:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/contracts/interfaces/IERC1271.sol",
+        "file": "../../interfaces/IERC1271.sol",
+        "id": 12721,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 12776,
+        "sourceUnit": 2154,
+        "src": "105:39:177",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "library",
+        "documentation": {
+          "id": 12722,
+          "nodeType": "StructuredDocumentation",
+          "src": "146:538:177",
+          "text": " @dev Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and\n ERC1271 contract sigantures. Using this instead of ECDSA.recover in your contract will make them compatible with\n smart contract wallets such as Argent and Gnosis.\n Note: unlike ECDSA signatures, contract signature's are revocable, and the outcome of this function can thus change\n through time. It could return true at block N and false at block N+1 (or the opposite).\n _Available since v4.1._"
+        },
+        "fullyImplemented": true,
+        "id": 12775,
+        "linearizedBaseContracts": [
+          12775
+        ],
+        "name": "SignatureChecker",
+        "nameLocation": "693:16:177",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": {
+              "id": 12773,
+              "nodeType": "Block",
+              "src": "858:381:177",
+              "statements": [
+                {
+                  "condition": {
+                    "arguments": [
+                      {
+                        "id": 12735,
+                        "name": "signer",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 12724,
+                        "src": "891:6:177",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "id": 12733,
+                        "name": "Address",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11853,
+                        "src": "872:7:177",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_contract$_Address_$11853_$",
+                          "typeString": "type(library Address)"
+                        }
+                      },
+                      "id": 12734,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "isContract",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 11577,
+                      "src": "872:18:177",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_view$_t_address_$returns$_t_bool_$",
+                        "typeString": "function (address) view returns (bool)"
+                      }
+                    },
+                    "id": 12736,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "872:26:177",
+                    "tryCall": false,
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "falseBody": {
+                    "id": 12771,
+                    "nodeType": "Block",
+                    "src": "1161:72:177",
+                    "statements": [
+                      {
+                        "expression": {
+                          "commonType": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          },
+                          "id": 12769,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "leftExpression": {
+                            "arguments": [
+                              {
+                                "id": 12765,
+                                "name": "hash",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12726,
+                                "src": "1196:4:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_bytes32",
+                                  "typeString": "bytes32"
+                                }
+                              },
+                              {
+                                "id": 12766,
+                                "name": "signature",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12728,
+                                "src": "1202:9:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_bytes_memory_ptr",
+                                  "typeString": "bytes memory"
+                                }
+                              }
+                            ],
+                            "expression": {
+                              "argumentTypes": [
+                                {
+                                  "typeIdentifier": "t_bytes32",
+                                  "typeString": "bytes32"
+                                },
+                                {
+                                  "typeIdentifier": "t_bytes_memory_ptr",
+                                  "typeString": "bytes memory"
+                                }
+                              ],
+                              "expression": {
+                                "id": 12763,
+                                "name": "ECDSA",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 12645,
+                                "src": "1182:5:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_contract$_ECDSA_$12645_$",
+                                  "typeString": "type(library ECDSA)"
+                                }
+                              },
+                              "id": 12764,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "lValueRequested": false,
+                              "memberName": "recover",
+                              "nodeType": "MemberAccess",
+                              "referencedDeclaration": 12523,
+                              "src": "1182:13:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_function_internal_pure$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_address_$",
+                                "typeString": "function (bytes32,bytes memory) pure returns (address)"
+                              }
+                            },
+                            "id": 12767,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": false,
+                            "kind": "functionCall",
+                            "lValueRequested": false,
+                            "names": [],
+                            "nodeType": "FunctionCall",
+                            "src": "1182:30:177",
+                            "tryCall": false,
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "nodeType": "BinaryOperation",
+                          "operator": "==",
+                          "rightExpression": {
+                            "id": 12768,
+                            "name": "signer",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 12724,
+                            "src": "1216:6:177",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "src": "1182:40:177",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bool",
+                            "typeString": "bool"
+                          }
+                        },
+                        "functionReturnParameters": 12732,
+                        "id": 12770,
+                        "nodeType": "Return",
+                        "src": "1175:47:177"
+                      }
+                    ]
+                  },
+                  "id": 12772,
+                  "nodeType": "IfStatement",
+                  "src": "868:365:177",
+                  "trueBody": {
+                    "id": 12762,
+                    "nodeType": "Block",
+                    "src": "900:255:177",
+                    "statements": [
+                      {
+                        "clauses": [
+                          {
+                            "block": {
+                              "id": 12755,
+                              "nodeType": "Block",
+                              "src": "997:96:177",
+                              "statements": [
+                                {
+                                  "expression": {
+                                    "commonType": {
+                                      "typeIdentifier": "t_bytes4",
+                                      "typeString": "bytes4"
+                                    },
+                                    "id": 12753,
+                                    "isConstant": false,
+                                    "isLValue": false,
+                                    "isPure": false,
+                                    "lValueRequested": false,
+                                    "leftExpression": {
+                                      "id": 12747,
+                                      "name": "magicValue",
+                                      "nodeType": "Identifier",
+                                      "overloadedDeclarations": [],
+                                      "referencedDeclaration": 12745,
+                                      "src": "1022:10:177",
+                                      "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes4",
+                                        "typeString": "bytes4"
+                                      }
+                                    },
+                                    "nodeType": "BinaryOperation",
+                                    "operator": "==",
+                                    "rightExpression": {
+                                      "expression": {
+                                        "expression": {
+                                          "arguments": [
+                                            {
+                                              "id": 12749,
+                                              "name": "signer",
+                                              "nodeType": "Identifier",
+                                              "overloadedDeclarations": [],
+                                              "referencedDeclaration": 12724,
+                                              "src": "1045:6:177",
+                                              "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                              }
+                                            }
+                                          ],
+                                          "expression": {
+                                            "argumentTypes": [
+                                              {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                              }
+                                            ],
+                                            "id": 12748,
+                                            "name": "IERC1271",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 2153,
+                                            "src": "1036:8:177",
+                                            "typeDescriptions": {
+                                              "typeIdentifier": "t_type$_t_contract$_IERC1271_$2153_$",
+                                              "typeString": "type(contract IERC1271)"
+                                            }
+                                          },
+                                          "id": 12750,
+                                          "isConstant": false,
+                                          "isLValue": false,
+                                          "isPure": false,
+                                          "kind": "typeConversion",
+                                          "lValueRequested": false,
+                                          "names": [],
+                                          "nodeType": "FunctionCall",
+                                          "src": "1036:16:177",
+                                          "tryCall": false,
+                                          "typeDescriptions": {
+                                            "typeIdentifier": "t_contract$_IERC1271_$2153",
+                                            "typeString": "contract IERC1271"
+                                          }
+                                        },
+                                        "id": 12751,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "lValueRequested": false,
+                                        "memberName": "isValidSignature",
+                                        "nodeType": "MemberAccess",
+                                        "referencedDeclaration": 2152,
+                                        "src": "1036:33:177",
+                                        "typeDescriptions": {
+                                          "typeIdentifier": "t_function_external_view$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_bytes4_$",
+                                          "typeString": "function (bytes32,bytes memory) view external returns (bytes4)"
+                                        }
+                                      },
+                                      "id": 12752,
+                                      "isConstant": false,
+                                      "isLValue": false,
+                                      "isPure": false,
+                                      "lValueRequested": false,
+                                      "memberName": "selector",
+                                      "nodeType": "MemberAccess",
+                                      "src": "1036:42:177",
+                                      "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes4",
+                                        "typeString": "bytes4"
+                                      }
+                                    },
+                                    "src": "1022:56:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bool",
+                                      "typeString": "bool"
+                                    }
+                                  },
+                                  "functionReturnParameters": 12732,
+                                  "id": 12754,
+                                  "nodeType": "Return",
+                                  "src": "1015:63:177"
+                                }
+                              ]
+                            },
+                            "errorName": "",
+                            "id": 12756,
+                            "nodeType": "TryCatchClause",
+                            "parameters": {
+                              "id": 12746,
+                              "nodeType": "ParameterList",
+                              "parameters": [
+                                {
+                                  "constant": false,
+                                  "id": 12745,
+                                  "mutability": "mutable",
+                                  "name": "magicValue",
+                                  "nameLocation": "985:10:177",
+                                  "nodeType": "VariableDeclaration",
+                                  "scope": 12756,
+                                  "src": "978:17:177",
+                                  "stateVariable": false,
+                                  "storageLocation": "default",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes4",
+                                    "typeString": "bytes4"
+                                  },
+                                  "typeName": {
+                                    "id": 12744,
+                                    "name": "bytes4",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "978:6:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bytes4",
+                                      "typeString": "bytes4"
+                                    }
+                                  },
+                                  "visibility": "internal"
+                                }
+                              ],
+                              "src": "977:19:177"
+                            },
+                            "src": "969:124:177"
+                          },
+                          {
+                            "block": {
+                              "id": 12759,
+                              "nodeType": "Block",
+                              "src": "1100:45:177",
+                              "statements": [
+                                {
+                                  "expression": {
+                                    "hexValue": "66616c7365",
+                                    "id": 12757,
+                                    "isConstant": false,
+                                    "isLValue": false,
+                                    "isPure": true,
+                                    "kind": "bool",
+                                    "lValueRequested": false,
+                                    "nodeType": "Literal",
+                                    "src": "1125:5:177",
+                                    "typeDescriptions": {
+                                      "typeIdentifier": "t_bool",
+                                      "typeString": "bool"
+                                    },
+                                    "value": "false"
+                                  },
+                                  "functionReturnParameters": 12732,
+                                  "id": 12758,
+                                  "nodeType": "Return",
+                                  "src": "1118:12:177"
+                                }
+                              ]
+                            },
+                            "errorName": "",
+                            "id": 12760,
+                            "nodeType": "TryCatchClause",
+                            "src": "1094:51:177"
+                          }
+                        ],
+                        "externalCall": {
+                          "arguments": [
+                            {
+                              "id": 12741,
+                              "name": "hash",
+                              "nodeType": "Identifier",
+                              "overloadedDeclarations": [],
+                              "referencedDeclaration": 12726,
+                              "src": "952:4:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_bytes32",
+                                "typeString": "bytes32"
+                              }
+                            },
+                            {
+                              "id": 12742,
+                              "name": "signature",
+                              "nodeType": "Identifier",
+                              "overloadedDeclarations": [],
+                              "referencedDeclaration": 12728,
+                              "src": "958:9:177",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_bytes_memory_ptr",
+                                "typeString": "bytes memory"
+                              }
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_bytes32",
+                                "typeString": "bytes32"
+                              },
+                              {
+                                "typeIdentifier": "t_bytes_memory_ptr",
+                                "typeString": "bytes memory"
+                              }
+                            ],
+                            "expression": {
+                              "arguments": [
+                                {
+                                  "id": 12738,
+                                  "name": "signer",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 12724,
+                                  "src": "927:6:177",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_address",
+                                    "typeString": "address"
+                                  }
+                                }
+                              ],
+                              "expression": {
+                                "argumentTypes": [
+                                  {
+                                    "typeIdentifier": "t_address",
+                                    "typeString": "address"
+                                  }
+                                ],
+                                "id": 12737,
+                                "name": "IERC1271",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 2153,
+                                "src": "918:8:177",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_contract$_IERC1271_$2153_$",
+                                  "typeString": "type(contract IERC1271)"
+                                }
+                              },
+                              "id": 12739,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "kind": "typeConversion",
+                              "lValueRequested": false,
+                              "names": [],
+                              "nodeType": "FunctionCall",
+                              "src": "918:16:177",
+                              "tryCall": false,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_contract$_IERC1271_$2153",
+                                "typeString": "contract IERC1271"
+                              }
+                            },
+                            "id": 12740,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": false,
+                            "lValueRequested": false,
+                            "memberName": "isValidSignature",
+                            "nodeType": "MemberAccess",
+                            "referencedDeclaration": 2152,
+                            "src": "918:33:177",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_function_external_view$_t_bytes32_$_t_bytes_memory_ptr_$returns$_t_bytes4_$",
+                              "typeString": "function (bytes32,bytes memory) view external returns (bytes4)"
+                            }
+                          },
+                          "id": 12743,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "kind": "functionCall",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "918:50:177",
+                          "tryCall": true,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes4",
+                            "typeString": "bytes4"
+                          }
+                        },
+                        "id": 12761,
+                        "nodeType": "TryStatement",
+                        "src": "914:231:177"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "id": 12774,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "isValidSignatureNow",
+            "nameLocation": "725:19:177",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 12729,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 12724,
+                  "mutability": "mutable",
+                  "name": "signer",
+                  "nameLocation": "762:6:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "754:14:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 12723,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "754:7:177",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 12726,
+                  "mutability": "mutable",
+                  "name": "hash",
+                  "nameLocation": "786:4:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "778:12:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 12725,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "778:7:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 12728,
+                  "mutability": "mutable",
+                  "name": "signature",
+                  "nameLocation": "813:9:177",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "800:22:177",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_memory_ptr",
+                    "typeString": "bytes"
+                  },
+                  "typeName": {
+                    "id": 12727,
+                    "name": "bytes",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "800:5:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage_ptr",
+                      "typeString": "bytes"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "744:84:177"
+            },
+            "returnParameters": {
+              "id": 12732,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 12731,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nameLocation": "-1:-1:-1",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 12774,
+                  "src": "852:4:177",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 12730,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "852:4:177",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "851:6:177"
+            },
+            "scope": 12775,
+            "src": "716:523:177",
+            "stateMutability": "view",
+            "virtual": false,
+            "visibility": "internal"
+          }
+        ],
+        "scope": 12776,
+        "src": "685:556:177",
+        "usedErrors": []
+      }
+    ],
+    "src": "33:1209:177"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.8.6+commit.11564f7e.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.4.3",
+  "updatedAt": "2021-09-06T22:41:29.490Z",
+  "devdoc": {
+    "details": "Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and ERC1271 contract sigantures. Using this instead of ECDSA.recover in your contract will make them compatible with smart contract wallets such as Argent and Gnosis. Note: unlike ECDSA signatures, contract signature's are revocable, and the outcome of this function can thus change through time. It could return true at block N and false at block N+1 (or the opposite). _Available since v4.1._",
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  }
+}
