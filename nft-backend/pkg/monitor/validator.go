@@ -27,7 +27,9 @@ func NewValidator(eth *blockchain.Ethereum, blocknum *big.Int, numWorker chan bo
 		Blocknum: blocknum,
 		db:       rdb,
 	}
+	//should return error
 	valid.validateBlock()
+	//this lets the manager know when the job is done
 	_ = <-numWorker
 }
 
@@ -46,17 +48,19 @@ func (v *Validator) validateBlock() {
 		//looking for transactions we care about
 		if to == contractAddr {
 			Txhash := transaction.Hash()
+
 			v.txhash = Txhash.Hex()
 			TxReceipt, err := v.eth.Client.TransactionReceipt(context.TODO(), Txhash)
 			if err != nil {
 				log.Fatal("error getting transaction receipt at validator:", err)
 			}
-			//gete the logs of the transaction
+			//get the logs of the transaction
 			TXlog := TxReceipt.Logs
 			Log := TXlog[1]
 			v.EventHandler(Log)
 		}
 	}
+	return
 }
 
 func (v *Validator) EventHandler(Log *types.Log) {
@@ -68,6 +72,8 @@ func (v *Validator) EventHandler(Log *types.Log) {
 		resourceID := v.db.Client.Get(context.TODO(), v.txhash).String()
 		//add recipient Address and token id to registry
 		v.db.StoreOwnership(resourceID, RecipientAddr, tokenID, 10)
+		//remove map of resourceID
+		v.db.Client.Del(context.TODO(), v.txhash)
 	case v.eth.Contract.DeleteEvent:
 		//deleteArray := Log.Topics[1].Value()
 	}

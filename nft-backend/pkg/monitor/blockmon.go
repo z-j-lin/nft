@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"log"
+	"math/big"
 	"time"
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
@@ -10,12 +11,15 @@ import (
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
+/**/
 type monitor struct {
 	eth   *blockchain.Ethereum
 	db    *redisDb.Database
 	state *objects.State
 }
 
+//makes an object to start a block monitor from
+//I might make this a go routine that also call Startmon
 func NewBlockMon(ether *blockchain.Ethereum) *monitor {
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
@@ -26,21 +30,26 @@ func NewBlockMon(ether *blockchain.Ethereum) *monitor {
 		db:  rdb,
 	}
 }
+
 func (mon *monitor) Startmon() <-chan bool {
 	//find the initial state in db
-	//if initial state is not in db
+
 	initState, err := mon.db.GetState()
 	mon.state = initState
+	//if initial state is not in db, initiate a state starting from
+	//initial block of contract
 	if err != nil {
 		RootBlock := uint64(10910043)
 		initState = &objects.State{
 			HighestFinalizedBlock: RootBlock,
 			HighestProcessedBlock: RootBlock,
 		}
+		//record the state
 		mon.state = initState
 	}
 	//might not need this
 	killChan := make(chan bool)
+	//starts the monitoring loop go routine
 	go mon.monitorloop(mon.state, killChan)
 	//DO i need this?
 	return killChan
@@ -67,12 +76,29 @@ func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
 			delayedLatestBlock := latestBlock - uint64(40)
 			/*add a block to the verfication queue if
 			the currentblock is less than or eq to delayedLatestBlock */
-			if currentBlock <= delayedLatestBlock {
+			if currentBlock < delayedLatestBlock {
 				//queue the pendingblock
-				mon.db.QPendingBlock(currentBlock)
+				//check if anything interesting is in the block?
+				//get the block
+				block, err := mon.eth.Client.BlockByNumber(context.TODO(), big.NewInt(int64(currentBlock)))
+				if err != nil {
+					log.Fatal("error getting block at blockmon, ", err)
+				}
+				//read receipt from block
+				BlockTXs := block.Transactions()
+				//iterate through the transactions looking for transactions to CAToken Contract
+				contractAddr := mon.eth.Contract.ContractAddress
+				for _, transaction := range BlockTXs {
+					to := *transaction.To()
+					//looking for transactions we care about
+					if to == contractAddr {
+						mon.db.QPendingBlock(currentBlock)
+						break
+					}
+				}
 				state.HighestProcessedBlock = currentBlock
 				//update state on redis
-				err := mon.db.UpdateState(state)
+				err = mon.db.UpdateState(state)
 				if err != nil {
 					log.Fatal("unable to update state", err)
 				}

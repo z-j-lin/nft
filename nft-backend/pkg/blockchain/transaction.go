@@ -68,7 +68,8 @@ func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
 	} else {
 		//if didnt fail add the transaction to the pending list
 		fmt.Println("bout to be in qpending")
-		mtx.db.SetStringVal(tx.Hash().Hex(), mtx.resourceID)
+		//temp map of resource ID to txn hash
+		mtx.db.Client.Set(context.TODO(), tx.Hash().Hex(), mtx.resourceID, 0)
 		//takes a item off the numworker channel from the loop function
 		//status := <-taskStatus
 		//_ = status
