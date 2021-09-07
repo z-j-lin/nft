@@ -57,6 +57,7 @@ func (v *Validator) validateBlock() {
 			//get the logs of the transaction
 			TXlog := TxReceipt.Logs
 			Log := TXlog[1]
+			//decide what to do with the event
 			v.EventHandler(Log)
 		}
 	}
@@ -75,6 +76,7 @@ func (v *Validator) EventHandler(Log *types.Log) {
 		//remove map of resourceID
 		v.db.Client.Del(context.TODO(), v.txhash)
 	case v.eth.Contract.DeleteEvent:
+
 		//deleteArray := Log.Topics[1].Value()
 	}
 }

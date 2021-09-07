@@ -69,6 +69,7 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//add transaction to the queue
+	// TODO: HANDLE ERROR AND PASS INFO BACK TO CALLER
 	rdb.Qmint(buy.Account, buy.resourceID)
 }
 

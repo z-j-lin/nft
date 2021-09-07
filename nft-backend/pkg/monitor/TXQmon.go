@@ -1,11 +1,30 @@
 package monitor
 
 import (
+	"crypto/ecdsa"
+	"errors"
 	"math/big"
+	"sync"
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
+
+/*
+
+user -> tx send
+
+			ATOMIC
+user -> [srvr -> db as pending q] -> [Qmon -> tx send -> block until mined or failure]
+
+blockMon -> addsToDBForAccess
+
+user w/ proof -> srvr -> validates against chain -> returns data
+
+*/
+type NewTxQ struct {
+	workChan chan interface{}
+}
 
 type TXQmon struct {
 	db            *redisDb.Database
@@ -71,6 +90,7 @@ func (qmon *TXQmon) QueryMintQ() {
 		//channel the transaction information to the TX manager
 		txinfo[0] = account
 		txinfo[1] = resourceID
+		//add a new list in db
 		qmon.MintQ <- txinfo
 	}
 }
@@ -86,7 +106,8 @@ func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
 		case tx := <-MintQ:
 			//if nothing is in the mintq kill the manager
 			//start a mint worker
-			go blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, numWorkers)
+
+			blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, numWorkers)
 		default:
 			qmon.QMANI = false
 			return
@@ -122,5 +143,79 @@ func (qmon *TXQmon) ValManager(BlockQ chan uint64) {
 			qmon.QBMANI = false
 			return
 		}
+	}
+}
+
+var ErrNoKeys error = errors.New("no privk available")
+var ErrKeyConflict error = errors.New("privk added twice")
+
+// PrivkManager releases keys to
+type PrivkManager struct {
+	sync.Mutex
+	// stores all possibe private keys OR knows where to go get them
+	// string key is the ether account
+	consumedMap  map[string]bool
+	availableMap map[string]bool
+	masterSetMap map[string]ecdsa.PrivateKey
+}
+
+func (pm *PrivkManager) AddPrivk(privk ecdsa.PrivateKey) error {
+	pm.Lock()
+	defer pm.Unlock()
+	addr := ethcrypto.PubkeyToAddress(privk.PublicKey)
+	_, ok := pm.masterSetMap[addr]
+	if ok {
+		return ErrKeyConflict
+	}
+	pm.masterSetMap[addr] = privk
+	pm.availableMap[addr] = true
+	return nil
+}
+
+func (pm *PrivkManager) GetWithLock() (ecdsa.PrivateKey, func(), error) {
+	pm.Lock()
+	defer pm.Unlock()
+	var privkAddr string
+	for _privkAddr := range pm.availableMap {
+		privkAddr = _privkAddr
+		break
+	}
+	if privkAddr == "" {
+		return ecdsa.PrivateKey{}, nil, ErrNoKeys
+	}
+	privk := pm.masterSetMap[privkAddr]
+	delete(pm.availableMap, privkAddr)
+	pm.consumedMap[privkAddr] = true
+	return privk, pm.free(privkAddr), nil
+}
+
+func (pm *PrivkManager) free(privkAddr string) func() {
+	pm.Lock()
+	defer pm.Unlock()
+	delete(pm.consumedMap, privkAddr)
+	pm.availableMap[privkAddr] = true
+}
+
+type TxWorker struct {
+	pm *PrivkManager
+	q  *TXQmon
+}
+
+func (txw *TxWorker) Run() error {
+	privk, free, err := txw.pm.GetWithLock()
+	if err != nil {
+		return err
+	}
+	defer free()
+	go txw.loop(privk)
+	return nil
+}
+
+func (txw *TxWorker) loop(privk ecdsa.PrivateKey) {
+	for {
+		txw.q.QueryMintQ()
+		// send the tx
+		// while loop
+
 	}
 }

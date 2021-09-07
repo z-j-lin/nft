@@ -22,7 +22,11 @@ type MintTx struct {
 //returns a pointer to a new transaction object
 func NewTransaction(TokenRecipient, resourceID string, contract *Contract, rdb *redisDb.Database, taskStatus chan bool) {
 	//instantiate new keyed transactor
-	auth := bind.NewKeyedTransactor(contract.eth.Key.PrivateKey)
+	eth := contract.eth
+	auth, err := bind.NewKeyedTransactorWithChainID(eth.Key.PrivateKey, eth.chainID)
+	if err != nil {
+		log.Panic(err)
+	}
 	traddr := common.HexToAddress(TokenRecipient)
 	tranx := &MintTx{
 		Auth:          auth,
@@ -45,12 +49,14 @@ func (mtx *MintTx) init_transactOpt() {
 		log.Fatal(err)
 	}
 	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 	//options for transaction
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
 	auth.GasLimit = uint64(300000)
 	auth.GasPrice = gasPrice
-
 }
 
 //function to send the transaction

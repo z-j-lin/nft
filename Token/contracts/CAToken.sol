@@ -44,7 +44,7 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
         //require unique tokenID
         _mint(_to, _tokenIdTracker.current());
         //emit information about the token
-        emit Minted (_to, _tokenIdTracker.current());
+        emit Minted(_to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
     }
 

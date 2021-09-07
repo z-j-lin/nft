@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -13,6 +14,7 @@ import (
 
 type Ethereum struct {
 	Client    *ethclient.Client
+	chainID   *big.Int
 	Contract  *Contract
 	Account   accounts.Account
 	Keystore  *keystore.KeyStore
@@ -21,16 +23,16 @@ type Ethereum struct {
 }
 
 /*initializes a client to rpc. */
-func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
-
+func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum, error) {
 	ethClient, err := ethclient.Dial(rpcurl)
 	if err != nil {
-		log.Printf("errror @ NewEtherClient unable to dial RPC endpoint: %v", err)
+		log.Printf("error @ NewEtherClient unable to dial RPC endpoint: %v", err)
 		return nil, err
 	}
 
 	eth := &Ethereum{
-		Client: ethClient,
+		Client:  ethClient,
+		chainID: chainID,
 	}
 
 	eth.loadaccount()
@@ -40,7 +42,7 @@ func NewEtherClient(rpcurl, contractAddress string) (*Ethereum, error) {
 		return nil, err
 	}
 	eth.Contract = &Contract{
-		eth: eth,
+		eth:             eth,
 		ContractAddress: common.HexToAddress(contractAddress),
 	}
 	eth.Contract.init()
@@ -60,10 +62,9 @@ func (eth *Ethereum) loadpasscode() {
 }
 
 func (eth *Ethereum) loadaccount() {
-	var dirPath string
 	//fmt.Printf("enter realtive key dir path: ")
 	//fmt.Scanf("%s", &dirPath)
-	dirPath = "./tmp"
+	dirPath := "./tmp"
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
 	eth.Keystore = ks
@@ -82,6 +83,9 @@ func (eth *Ethereum) unlockkey(account accounts.Account) error {
 	}
 	//decrypt the private key
 	privateKey, err := keystore.DecryptKey(encrytpedKey, passcode)
+	if err != nil {
+		log.Fatal(err)
+	}
 	eth.Key = privateKey
 	return nil
 }

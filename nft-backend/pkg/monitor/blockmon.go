@@ -3,7 +3,6 @@ package monitor
 import (
 	"context"
 	"log"
-	"math/big"
 	"time"
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
@@ -77,25 +76,7 @@ func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
 			/*add a block to the verfication queue if
 			the currentblock is less than or eq to delayedLatestBlock */
 			if currentBlock < delayedLatestBlock {
-				//queue the pendingblock
-				//check if anything interesting is in the block?
-				//get the block
-				block, err := mon.eth.Client.BlockByNumber(context.TODO(), big.NewInt(int64(currentBlock)))
-				if err != nil {
-					log.Fatal("error getting block at blockmon, ", err)
-				}
-				//read receipt from block
-				BlockTXs := block.Transactions()
-				//iterate through the transactions looking for transactions to CAToken Contract
-				contractAddr := mon.eth.Contract.ContractAddress
-				for _, transaction := range BlockTXs {
-					to := *transaction.To()
-					//looking for transactions we care about
-					if to == contractAddr {
-						mon.db.QPendingBlock(currentBlock)
-						break
-					}
-				}
+				mon.db.QPendingBlock(currentBlock)
 				state.HighestProcessedBlock = currentBlock
 				//update state on redis
 				err = mon.db.UpdateState(state)

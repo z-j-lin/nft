@@ -34,13 +34,21 @@ func NewDBinstance() (*Database, error) {
 	}, nil
 }
 
+////////////////////////////////////////////////////////////////////////////
+
 //add to mint queue
 //stores the address in a list
 func (db *Database) Qmint(address, resourceID string) error {
 	//create a key for the set
 	Job := address + resourceID
 	//push the job on the mintq list
-	db.Client.LPush(context.TODO(), "MintQ", Job)
+	numElem, err := db.Client.LPush(context.TODO(), "MintQ", Job).Result()
+	if err != nil {
+		return err
+	}
+	if numElem != 1 {
+		panic("should not happen")
+	}
 	return nil
 }
 
@@ -58,6 +66,24 @@ func (db *Database) DQmint() (account, resourceID string) {
 	}
 	return account, resourceID
 }
+
+//this function is used when a burn a burn happened
+func (db *Database) RemoveToken(tokenID string) {
+	//get Account from token map
+	OwnerAddress := db.Client.HMGet(context.TODO(), tokenID, "Account").String()
+	//delete tokenID from owner set
+	err := db.Client.SRem(context.TODO(), OwnerAddress, tokenID).Err()
+	if err != nil {
+		log.Panicf("failed to delete token from account owner set: %v", err)
+	}
+	//delete token hash map
+	err = db.Client.HDel(context.TODO(), tokenID).Err()
+	if err != nil {
+		log.Panicf("failed to delete token from hashmap: %v", err)
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 
 //this function can add or just update blockmon state
 func (db *Database) UpdateState(state *objects.State) error {
@@ -88,6 +114,7 @@ func (db *Database) GetState() (*objects.State, error) {
 	if err != nil {
 		panic(err)
 	}
+	//need a condition for 0
 	if StateSlice[1] == nil {
 		logger := log.Default()
 		logger.Println("State does not exist on disk")
@@ -155,21 +182,5 @@ func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days
 	err = db.Client.ZAdd(context.TODO(), "Collective", element).Err()
 	if err != nil {
 		log.Panicf("failed to add the tokenID to the collective set: %v", err)
-	}
-}
-
-//this function is used when a burn a burn happened
-func (db *Database) RemoveToken(tokenID string) {
-	//get Account from token map
-	OwnerAddress := db.Client.HMGet(context.TODO(), tokenID, "Account").String()
-	//delete tokenID from owner set
-	err := db.Client.SRem(context.TODO(), OwnerAddress, tokenID).Err()
-	if err != nil {
-		log.Panicf("failed to delete token from account owner set: %v", err)
-	}
-	//delete token hash map
-	err = db.Client.HDel(context.TODO(), tokenID).Err()
-	if err != nil {
-		log.Panicf("failed to delete token from hashmap: %v", err)
 	}
 }
