@@ -3,10 +3,10 @@ package monitor
 import (
 	"crypto/ecdsa"
 	"errors"
-	"math/big"
 	"sync"
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
+	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
@@ -27,123 +27,17 @@ type NewTxQ struct {
 }
 
 type TXQmon struct {
-	db            *redisDb.Database
-	eth           *blockchain.Ethereum
-	MintQ         chan [2]string
-	PendingBlockQ chan uint64
-	QMANI         bool
-	QBMANI        bool
+	db  *redisDb.Database
+	eth *blockchain.Ethereum
 }
 
-func NewQmon(rdb *redisDb.Database, eth *blockchain.Ethereum) *TXQmon {
-	//channel for storing mint jobs
-	Mintque := make(chan [2]string, 10)
-	PendingBlockque := make(chan uint64, 10)
-	Qmon := &TXQmon{
-		db:            rdb,
-		MintQ:         Mintque,
-		PendingBlockQ: PendingBlockque,
-		eth:           eth,
-	}
+func NewQmon(redisAddr string, numWorkers int) *TXQmon {
+	//new server instance
+	tasks.NewServerClient(redisAddr, numWorkers)
+	//New key manager instance
+
+	Qmon := &TXQmon{}
 	return Qmon
-}
-
-//function to start the Transaction que monitoring loop
-func (qmon *TXQmon) StartTXQmon() {
-	//start the transaction que monitor
-	go qmon.TXloop()
-}
-
-//checks the mint q for jobs
-func (qmon *TXQmon) TXloop() {
-	//ques := qmon.db.Client.Subscribe(context.TODO())
-	//qmessage := ques.Channel()
-	for {
-		/*
-			select{
-			case message:= <-qmessage:
-				switch message.Payload{
-				case "MintQ":
-					qmon.QueryMintQ()
-				case "PendingQ":
-				}
-			}
-		*/
-		//TODO: implement pubsub
-		//in the function that uses qmint, publishes a message everytime
-		qmon.QueryMintQ()
-		//check if there is a pending transaction
-		qmon.QueryPendingBlockQ()
-		//if there is a pending transaction get the transaction logs
-	}
-}
-
-//function to query the mintQ
-func (qmon *TXQmon) QueryMintQ() {
-	var txinfo [2]string
-	account, resourceID := qmon.db.DQmint()
-	if account != "" {
-		if !qmon.QMANI {
-			go qmon.txqmanager(qmon.MintQ)
-			qmon.QMANI = true
-		}
-		//channel the transaction information to the TX manager
-		txinfo[0] = account
-		txinfo[1] = resourceID
-		//add a new list in db
-		qmon.MintQ <- txinfo
-	}
-}
-
-//this works a little too complicated can be simpler, im over it rn
-func (qmon *TXQmon) txqmanager(MintQ chan [2]string) {
-	numWorkers := make(chan bool, 3)
-	for {
-		//if this channel buffer is full it blocks, no new task is created until a task finishes
-		numWorkers <- true
-		select {
-		//start a Transaction
-		case tx := <-MintQ:
-			//if nothing is in the mintq kill the manager
-			//start a mint worker
-
-			blockchain.NewTransaction(tx[0], tx[1], qmon.eth.Contract, qmon.db, numWorkers)
-		default:
-			qmon.QMANI = false
-			return
-		}
-	}
-}
-
-//query the block Validator Q
-func (qmon *TXQmon) QueryPendingBlockQ() {
-	Blocknum := qmon.db.DQpendingBlock()
-	if Blocknum != 0 {
-		if !qmon.QBMANI {
-			go qmon.ValManager(qmon.PendingBlockQ)
-			qmon.QBMANI = true
-		}
-		//add blocknum to the buffer
-		qmon.PendingBlockQ <- Blocknum
-	}
-}
-func (qmon *TXQmon) ValManager(BlockQ chan uint64) {
-	numWorkers := make(chan bool, 8)
-	for {
-		//if this channel buffer is full it blocks, no new task is created until a task finishes
-		numWorkers <- true
-		select {
-		//start a Transaction
-		case Blocknum := <-BlockQ:
-			//start a mint worker
-			num := big.NewInt(int64(Blocknum))
-			go NewValidator(qmon.eth, num, numWorkers)
-		default:
-			//if nothing is in the mintq kill the manager
-			qmon.QBMANI = false
-			return
-		}
-	}
 }
 
 var ErrNoKeys error = errors.New("no privk available")
@@ -190,32 +84,38 @@ func (pm *PrivkManager) GetWithLock() (ecdsa.PrivateKey, func(), error) {
 }
 
 func (pm *PrivkManager) free(privkAddr string) func() {
-	pm.Lock()
-	defer pm.Unlock()
-	delete(pm.consumedMap, privkAddr)
-	pm.availableMap[privkAddr] = true
+	return func() {
+		//does it need mutex lock? each worker will have a unique key
+		pm.Lock()
+		defer pm.Unlock()
+		delete(pm.consumedMap, privkAddr)
+		pm.availableMap[privkAddr] = true
+	}
 }
 
+//worker with access to private key manager
 type TxWorker struct {
 	pm *PrivkManager
 	q  *TXQmon
 }
 
 func (txw *TxWorker) Run() error {
+	//get the private key
 	privk, free, err := txw.pm.GetWithLock()
 	if err != nil {
 		return err
 	}
 	defer free()
+	//send the transaction
 	go txw.loop(privk)
 	return nil
 }
 
+//loop until
 func (txw *TxWorker) loop(privk ecdsa.PrivateKey) {
+	//send transaction
 	for {
-		txw.q.QueryMintQ()
-		// send the tx
-		// while loop
 
+		//check if transaction went through
 	}
 }
