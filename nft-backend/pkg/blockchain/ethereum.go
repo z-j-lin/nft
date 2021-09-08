@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -16,9 +15,9 @@ type Ethereum struct {
 	Client    *ethclient.Client
 	chainID   *big.Int
 	Contract  *Contract
-	Account   accounts.Account
+	Accounts  []accounts.Account
 	Keystore  *keystore.KeyStore
-	Key       *keystore.Key
+	Keys      map[common.Address]*keystore.Key
 	Passcodes map[common.Address]string
 }
 
@@ -34,10 +33,9 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 		Client:  ethClient,
 		chainID: chainID,
 	}
-
 	eth.loadaccount()
 	eth.loadpasscode()
-	err = eth.unlockkey(eth.Account)
+	err = eth.unlockkey(eth.Accounts)
 	if err != nil {
 		return nil, err
 	}
@@ -49,16 +47,14 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 	return eth, nil
 }
 func (eth *Ethereum) loadpasscode() {
-	var passcode, address string
-	address = eth.Account.Address.Hex()
-	passcode = "pineapple"
 	passcodes := make(map[common.Address]string)
-	//fmt.Printf("enter address: ")
-	//fmt.Scanf("%s", &address)
-	//fmt.Printf("enter passcode: ")
-	//fmt.Scanf("%s", &passcode)
-	passcodes[common.HexToAddress(address)] = passcode
-	eth.Passcodes = passcodes
+	passcode := "pineapple"
+	//loop through accounts
+	for _, account := range eth.Accounts {
+		address := account.Address
+		passcodes[address] = passcode
+		eth.Passcodes = passcodes
+	}
 }
 
 func (eth *Ethereum) loadaccount() {
@@ -68,24 +64,26 @@ func (eth *Ethereum) loadaccount() {
 	//for testing only: implement keystore for more secure account storage
 	ks := keystore.NewKeyStore(dirPath, keystore.StandardScryptN, keystore.StandardScryptP)
 	eth.Keystore = ks
-	eth.Account = ks.Accounts()[1]
+	eth.Accounts = ks.Accounts()
 }
 
-func (eth *Ethereum) unlockkey(account accounts.Account) error {
-	passcode, exists := eth.Passcodes[account.Address]
-	if !exists {
-		return fmt.Errorf("passcode not found")
+func (eth *Ethereum) unlockkey(accounts []accounts.Account) error {
+	for _, account := range accounts {
+		passcode, exists := eth.Passcodes[account.Address]
+		if exists {
+			//get the encrypted private key in json form
+			encrytpedKey, err := ioutil.ReadFile((account.URL.Path))
+			if err != nil {
+				log.Println("unable to getch key from URL path for", account.Address, "err:", err)
+			}
+			//decrypt the private key
+			privateKey, err := keystore.DecryptKey(encrytpedKey, passcode)
+			if err != nil {
+				log.Fatal(err)
+			}
+			eth.Keys[account.Address] = privateKey
+			return nil
+		}
 	}
-	//get the encrypted private key in json form
-	encrytpedKey, err := ioutil.ReadFile((account.URL.Path))
-	if err != nil {
-		return err
-	}
-	//decrypt the private key
-	privateKey, err := keystore.DecryptKey(encrytpedKey, passcode)
-	if err != nil {
-		log.Fatal(err)
-	}
-	eth.Key = privateKey
 	return nil
 }

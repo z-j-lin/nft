@@ -1,10 +1,14 @@
 package monitor
 
 import (
+	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
+	"log"
 	"sync"
 
+	"github.com/hibiken/asynq"
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
@@ -31,13 +35,62 @@ type TXQmon struct {
 	eth *blockchain.Ethereum
 }
 
-func NewQmon(redisAddr string, numWorkers int) *TXQmon {
+func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
 	//new server instance
-	tasks.NewServerClient(redisAddr, numWorkers)
-	//New key manager instance
 
-	Qmon := &TXQmon{}
-	return Qmon
+	//New key manager instance
+	pm := &PrivkManager{}
+	for addr, key := range eth.Keys {
+		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
+	}
+	hdl := &Handler{
+		PrivkManager: pm,
+	}
+	NewServerClient(redisAddr, numWorkers, hdl)
+
+}
+
+func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
+	srv := asynq.NewServer(
+		asynq.RedisClientOpt{Addr: redisAddr},
+		//if concurrency is 0, the default would be # accessable CPU
+		asynq.Config{Concurrency: 0},
+	)
+	mux := asynq.NewServeMux()
+	// matches the task type with the function to perform the task
+	mux.HandleFunc(tasks.TypeMintToken, hdl.HandleMintTokenTask)
+	//mux.HandleFunc(TypeBurnTokens)
+	//starts the server and blocks until a OS signal to exit is sent to terminate
+	err := srv.Run(mux)
+	if err != nil {
+		log.Fatal("unable to start task server", err)
+	}
+}
+
+type Handler struct {
+	PrivkManager *PrivkManager
+}
+
+//runs as a go routine within the server
+func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) error {
+	panic("unimplemented")
+	//data struct stores data for the task
+	var data MintToken
+	err := json.Unmarshal(t.Payload(), &data)
+	if err != nil {
+		log.Println("failed to unmarshal task payload in Minttoken Handler")
+		return err
+	}
+	//start a new txworker
+	NewTX := TxWorker{}
+	//run the worker
+	NewTX.Run()
+	//returns the status of the job
+	return nil
+}
+func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
+	panic("unimplemented")
+	return nil
 }
 
 var ErrNoKeys error = errors.New("no privk available")
@@ -53,10 +106,9 @@ type PrivkManager struct {
 	masterSetMap map[string]ecdsa.PrivateKey
 }
 
-func (pm *PrivkManager) AddPrivk(privk ecdsa.PrivateKey) error {
+func (pm *PrivkManager) AddPrivk(addr string, privk ecdsa.PrivateKey) error {
 	pm.Lock()
 	defer pm.Unlock()
-	addr := ethcrypto.PubkeyToAddress(privk.PublicKey)
 	_, ok := pm.masterSetMap[addr]
 	if ok {
 		return ErrKeyConflict
@@ -107,7 +159,7 @@ func (txw *TxWorker) Run() error {
 	}
 	defer free()
 	//send the transaction
-	go txw.loop(privk)
+	txw.loop(privk)
 	return nil
 }
 

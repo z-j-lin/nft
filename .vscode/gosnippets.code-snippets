@@ -16,13 +16,13 @@
 	// 	"description": "Log output to console"
 	// }
 
-	"iferr" :{
+	"iferrlog print and return nil, err" :{
 		"scope": "go",
-		"prefix": "iferr",
+		"prefix": "if err ",
 		"body": [
 			"if err != nil {",
-			"$2 log.Println(err)",
-			"$2 return nil, err", 
+			"$4 log.Println(err)",
+			"$4 return nil, err", 
 			"}"
 		],
 		"description": "Fatal Error logging"
@@ -34,7 +34,7 @@
 		"prefix": "iferrf",
 		"body": [
 			"if err != nil {",
-			"$2 log.Fatal(err)",
+			"$4 log.Fatal(err)",
 			"}"
 		],
 		"description": "Fatal Error logging"

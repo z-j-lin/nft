@@ -3,6 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/hibiken/asynq"
 )
@@ -13,7 +14,7 @@ const (
 )
 
 type MintToken struct {
-	AccountAddress string
+	tccountAddress string
 	ResourceID     string
 	Nonce          uint64
 }
@@ -21,46 +22,33 @@ type BurnToken struct {
 	tokenID string
 }
 
-type AsyClient struct {
+//run as go routine
+// server just takes tasks off the queue
+//numworkers determine max number of concurrent workers
+
+type TaskClient struct {
 	client *asynq.Client
 }
 
-func NewServerClient(redisAddr string, numWorkers int) {
-	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr},
-		asynq.Config{Concurrency: 10},
-	)
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(TypeMintToken)
-	mux.HandleFunc(TypeBurnTokens)
-	err := srv.Run(mux)
-}
-
-func NewAsyncredisClient(redisAddr string) *AsyClient {
+func NewAsyncredisClient(redisAddr string) *TaskClient {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
 
-	return &AsyClient{
+	return &TaskClient{
 		client: client,
 	}
-
 }
 
-func NewMintTokenTask(accAddr, resourceID string) (*asynq.Task, error) {
-	Data, err := json.Marshal(MintToken{AccountAddress: accAddr, ResourceID: resourceID})
-	if err != nil {
-		return nil, err
-	}
-	return asynq.NewTask(TypeMintToken, Data), nil
-}
-
-func (ac *AsyClient) QMintTask(accAddr, resourceID string) error {
+// used in the api for token purchasing, creates a mint task
+//only makes 1 mint task at a time
+func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 	//create the task
-	task, err := NewMintTokenTask(accAddr, resourceID)
+	task, err := tc.newMintTokenTask(accAddr, resourceID)
 	if err != nil {
 		log.Println("failed to create Mint task", err)
 		return err
 	}
-	info, err := ac.client.Enqueue(task)
+	// enques the mint task, retries every 10 min until succeeds or max retry count is hit
+	info, err := tc.client.Enqueue(task, asynq.Queue("Mint"), asynq.Timeout(10*time.Minute), asynq.MaxRetry(3))
 	if err != nil {
 		log.Println("failed to queue the task")
 		return err
@@ -69,29 +57,22 @@ func (ac *AsyClient) QMintTask(accAddr, resourceID string) error {
 	return nil
 }
 
-func (ac *AsyClient) HandleMintTokenTask(t *asynq.Task) error {
-	panic("unimplemented")
-	//data struct stores data for the task
-	var data MintToken
-	err := json.Unmarshal(t.Payload(), &data)
+//TODO: Implement QBURNTASK
+
+func (tc *TaskClient) newMintTokenTask(tccAddr, resourceID string) (*asynq.Task, error) {
+	Data, err := json.Marshal(MintToken{tccountAddress: tccAddr, ResourceID: resourceID})
 	if err != nil {
-		log.Println("failed to unmarshal task payload in Minttoken Handler")
-		return err
+		return nil, err
 	}
-	//run send transaction function
-	return nil
+	return asynq.NewTask(TypeMintToken, Data), nil
 }
 
-func (ac *AsyClient) NewBurnTokenTask(tokenID string) (*asynq.Task, error) {
+//might be able to make this a repeatable task with the asynq scheduler
+func (tc *TaskClient) NewBurnTokenTask(tokenID string) (*asynq.Task, error) {
 	Data, err := json.Marshal(BurnToken{tokenID: tokenID})
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 	return asynq.NewTask(TypeBurnTokens, Data), nil
-}
-
-func (ac *AsyClient) HandleBurnTokenTask(t *asynq.Task) error {
-	panic("unimplemented")
-	return nil
 }
