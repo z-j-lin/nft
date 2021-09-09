@@ -5,9 +5,12 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
+	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hibiken/asynq"
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
@@ -40,9 +43,11 @@ func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
 
 	//New key manager instance
 	pm := &PrivkManager{}
+	//add keys to the key manager
 	for addr, key := range eth.Keys {
 		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
 	}
+	//used in the server client handler functions
 	hdl := &Handler{
 		PrivkManager: pm,
 	}
@@ -69,24 +74,30 @@ func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 
 type Handler struct {
 	PrivkManager *PrivkManager
+	eth          *blockchain.Ethereum
+	db           *redisDb.Database
 }
 
 //runs as a go routine within the server
 func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) error {
-	panic("unimplemented")
 	//data struct stores data for the task
-	var data MintToken
+	var data tasks.MintToken
 	err := json.Unmarshal(t.Payload(), &data)
 	if err != nil {
 		log.Println("failed to unmarshal task payload in Minttoken Handler")
 		return err
 	}
-	//start a new txworker
-	NewTX := TxWorker{}
+	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, hdl.eth, hdl.db)
+	//start a new txworker, with the mint transaction function
+	NewTX := TxWorker{
+		pm:     hdl.PrivkManager,
+		eth:    hdl.eth,
+		sendTX: send,
+	}
 	//run the worker
-	NewTX.Run()
+	err = NewTX.Run()
 	//returns the status of the job
-	return nil
+	return err
 }
 func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
 	panic("unimplemented")
@@ -147,27 +158,48 @@ func (pm *PrivkManager) free(privkAddr string) func() {
 
 //worker with access to private key manager
 type TxWorker struct {
-	pm *PrivkManager
-	q  *TXQmon
+	pm     *PrivkManager
+	eth    *blockchain.Ethereum
+	sendTX blockchain.Send
 }
 
+func NewTXWorker(privKM *PrivkManager, eth *blockchain.Ethereum, send blockchain.Send) *TxWorker {
+	return &TxWorker{
+		pm:     privKM,
+		eth:    eth,
+		sendTX: send,
+	}
+}
 func (txw *TxWorker) Run() error {
 	//get the private key
 	privk, free, err := txw.pm.GetWithLock()
 	if err != nil {
 		return err
 	}
+	//the key is freed after the transaction is mined
 	defer free()
 	//send the transaction
-	txw.loop(privk)
-	return nil
-}
-
-//loop until
-func (txw *TxWorker) loop(privk ecdsa.PrivateKey) {
-	//send transaction
-	for {
-
-		//check if transaction went through
+	tx, err := txw.sendTX.SendTransaction(privk)
+	receipt, err := txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+	rx := make(chan *types.Receipt)
+	for receipt == nil && err == errors.New("not found") {
+		receipt, err = txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+		rx <- receipt
+		select {
+		case Receipt := <-rx:
+			if Receipt.Status == 1 {
+				return nil
+			} else {
+				return fmt.Errorf("transaction failed")
+			}
+		case <-time.After(10 * time.Minute):
+			return fmt.Errorf("timedout failed to send transaction")
+		}
+	}
+	if err != nil {
+		log.Println(err)
+		return err
+	} else {
+		return nil
 	}
 }

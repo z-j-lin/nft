@@ -2,48 +2,45 @@ package blockchain
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 )
 
-type MintTx struct {
-	contract      *Contract
-	Auth          *bind.TransactOpts
+type Send interface {
+	SendTransaction(ecdsa.PrivateKey) (*types.Transaction, error)
+}
+type mintTx struct {
+	eth           *Ethereum
 	recipientAddr common.Address
 	db            *redisDb.Database
 	resourceID    string
 }
 
-//returns a pointer to a new transaction object
-func NewTransaction(TokenRecipient, resourceID string, contract *Contract, rdb *redisDb.Database, taskStatus chan bool) {
-	//instantiate new keyed transactor
-	eth := contract.eth
-	auth, err := bind.NewKeyedTransactorWithChainID(eth.Key.PrivateKey, eth.chainID)
-	if err != nil {
-		log.Panic(err)
-	}
+//returns the hash of the transaction sent
+func NewMintTransaction(TokenRecipient, resourceID string, eth *Ethereum, rdb *redisDb.Database) Send {
 	traddr := common.HexToAddress(TokenRecipient)
-	tranx := &MintTx{
-		Auth:          auth,
-		contract:      contract,
+	tranx := &mintTx{
 		recipientAddr: traddr,
+		resourceID:    resourceID,
+		eth:           eth,
 		db:            rdb,
 	}
-	tranx.resourceID = resourceID
-	tranx.SendTransaction(TokenRecipient, taskStatus)
+	return tranx
 }
 
-func (mtx *MintTx) init_transactOpt() {
+func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactOpts {
+	auth, err := bind.NewKeyedTransactorWithChainID(&privateKey, mtx.eth.chainID)
 	// collect the nonce and the gas price
-	auth := mtx.Auth
-	client := mtx.contract.eth.Client
-	fromAddress := mtx.contract.eth.Account.Address
-	fmt.Println(fromAddress)
+	client := mtx.eth.Client
+	fromAddress := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
 	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
 		log.Fatal(err)
@@ -57,28 +54,24 @@ func (mtx *MintTx) init_transactOpt() {
 	auth.Value = big.NewInt(0)
 	auth.GasLimit = uint64(300000)
 	auth.GasPrice = gasPrice
+	return auth
 }
 
 //function to send the transaction
-func (mtx *MintTx) SendTransaction(address string, taskStatus chan bool) {
-	to := common.HexToAddress(address)
-	mtx.init_transactOpt()
+func (mtx *mintTx) SendTransaction(key ecdsa.PrivateKey) (*types.Transaction, error) {
+	auth := mtx.init_transactOpt(key)
 	//set true for testing monitor
-	mtx.Auth.NoSend = false
+	auth.NoSend = false
 	//sendtx
-	tx, err := mtx.contract.MintToken(mtx.Auth, to)
+	tx, err := mtx.eth.Contract.MintToken(auth, mtx.recipientAddr)
 	if err != nil {
-		log.Printf("transaction failed: %v", err)
-		//add the transaction back to the transaction que
-		mtx.db.Qmint(mtx.recipientAddr.Hex(), mtx.resourceID)
+		return nil, fmt.Errorf("failed to send transaction: %v", err)
 	} else {
 		//if didnt fail add the transaction to the pending list
-		fmt.Println("bout to be in qpending")
 		//temp map of resource ID to txn hash
 		mtx.db.Client.Set(context.TODO(), tx.Hash().Hex(), mtx.resourceID, 0)
-		//takes a item off the numworker channel from the loop function
-		//status := <-taskStatus
-		//_ = status
 		fmt.Println("transaction added to pending que")
+		return tx, nil
 	}
+
 }

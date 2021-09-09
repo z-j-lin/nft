@@ -14,7 +14,7 @@ const (
 )
 
 type MintToken struct {
-	tccountAddress string
+	AccountAddress string
 	ResourceID     string
 	Nonce          uint64
 }
@@ -59,8 +59,8 @@ func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 
 //TODO: Implement QBURNTASK
 
-func (tc *TaskClient) newMintTokenTask(tccAddr, resourceID string) (*asynq.Task, error) {
-	Data, err := json.Marshal(MintToken{tccountAddress: tccAddr, ResourceID: resourceID})
+func (tc *TaskClient) newMintTokenTask(accAddr, resourceID string) (*asynq.Task, error) {
+	Data, err := json.Marshal(MintToken{AccountAddress: accAddr, ResourceID: resourceID})
 	if err != nil {
 		return nil, err
 	}
