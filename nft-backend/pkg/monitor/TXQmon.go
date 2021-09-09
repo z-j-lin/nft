@@ -140,6 +140,7 @@ func (pm *PrivkManager) GetWithLock() (ecdsa.PrivateKey, func(), error) {
 	if privkAddr == "" {
 		return ecdsa.PrivateKey{}, nil, ErrNoKeys
 	}
+
 	privk := pm.masterSetMap[privkAddr]
 	delete(pm.availableMap, privkAddr)
 	pm.consumedMap[privkAddr] = true
