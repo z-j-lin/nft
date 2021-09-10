@@ -28,14 +28,15 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 		log.Printf("error @ NewEtherClient unable to dial RPC endpoint: %v", err)
 		return nil, err
 	}
-
+	keys := make(map[common.Address]*keystore.Key)
 	eth := &Ethereum{
 		Client:  ethClient,
 		chainID: chainID,
+		Keys:    keys,
 	}
 	eth.loadaccount()
 	eth.loadpasscode()
-	err = eth.unlockkey(eth.Accounts)
+	err = eth.unlockkey()
 	if err != nil {
 		return nil, err
 	}
@@ -49,12 +50,11 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 func (eth *Ethereum) loadpasscode() {
 	passcodes := make(map[common.Address]string)
 	passcode := "pineapple"
-	//loop through accounts
 	for _, account := range eth.Accounts {
 		address := account.Address
 		passcodes[address] = passcode
-		eth.Passcodes = passcodes
 	}
+	eth.Passcodes = passcodes
 }
 
 func (eth *Ethereum) loadaccount() {
@@ -67,8 +67,8 @@ func (eth *Ethereum) loadaccount() {
 	eth.Accounts = ks.Accounts()
 }
 
-func (eth *Ethereum) unlockkey(accounts []accounts.Account) error {
-	for _, account := range accounts {
+func (eth *Ethereum) unlockkey() error {
+	for _, account := range eth.Accounts {
 		passcode, exists := eth.Passcodes[account.Address]
 		if exists {
 			//get the encrypted private key in json form
@@ -82,7 +82,6 @@ func (eth *Ethereum) unlockkey(accounts []accounts.Account) error {
 				log.Fatal(err)
 			}
 			eth.Keys[account.Address] = privateKey
-			return nil
 		}
 	}
 	return nil

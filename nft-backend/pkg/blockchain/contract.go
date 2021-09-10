@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 
@@ -43,14 +44,6 @@ func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Addre
 }
 
 func (c *Contract) DeleteTokens(auth *bind.TransactOpts, IDs []*big.Int) (*types.Transaction, error) {
-	//gasPrice, err := c.eth.Client.SuggestGasPrice(context.Background())
-	//fromAddress := c.eth.Account.Address
-	//nonce, err := c.eth.Client.PendingNonceAt(context.Background(), fromAddress)
-	//options for transaction
-	//auth.Nonce = big.NewInt(int64(nonce))
-	//auth.Value = big.NewInt(0)
-	//auth.GasLimit = uint64(300000)
-	//auth.GasPrice = gasPrice
 	tx, err := c.Instance.ExpiredContracts(auth, IDs)
 	if err != nil {
 		log.Println("failed to send transaction @ DeleteTokens:", err)
@@ -59,4 +52,30 @@ func (c *Contract) DeleteTokens(auth *bind.TransactOpts, IDs []*big.Int) (*types
 	return tx, err
 }
 
-//method to check if owner has token??
+func (c *Contract) SetServerRole(Auth *bind.TransactOpts, serverAddress common.Address) (*types.Transaction, error) {
+	tx, err := c.Instance.AddServerRole(Auth, serverAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return tx, err
+}
+
+//check if owner owns token
+func (c *Contract) IsOwner(CallOpts *bind.CallOpts, address common.Address, tokenID int64) (bool, error) {
+	TID := big.NewInt(tokenID)
+	ownerAddr, err := c.Instance.OwnerOf(CallOpts, TID)
+	if err != nil {
+		return false, err
+	}
+	if ownerAddr == address {
+		return true, nil
+	} else {
+		return false, fmt.Errorf("not owner")
+	}
+}
+
+func (c *Contract) SafeTransferFrom(Auth *bind.TransactOpts, Owneraddress, Recipient common.Address, tokenID int64) (*types.Transaction, error) {
+	TID := big.NewInt(tokenID)
+	tx, err := c.Instance.SafeTransferFrom(Auth, Owneraddress, Recipient, TID)
+	return tx, err
+}

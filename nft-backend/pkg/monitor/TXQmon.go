@@ -29,20 +29,17 @@ blockMon -> addsToDBForAccess
 user w/ proof -> srvr -> validates against chain -> returns data
 
 */
-type NewTxQ struct {
-	workChan chan interface{}
-}
-
-type TXQmon struct {
-	db  *redisDb.Database
-	eth *blockchain.Ethereum
-}
 
 func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
-	//new server instance
-
+	consumedMap := make(map[string]bool)
+	availableMap := make(map[string]bool)
+	masterSetMap := make(map[string]ecdsa.PrivateKey)
 	//New key manager instance
-	pm := &PrivkManager{}
+	pm := &PrivkManager{
+		consumedMap:  consumedMap,
+		availableMap: availableMap,
+		masterSetMap: masterSetMap,
+	}
 	//add keys to the key manager
 	for addr, key := range eth.Keys {
 		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
@@ -106,6 +103,7 @@ func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
 
 var ErrNoKeys error = errors.New("no privk available")
 var ErrKeyConflict error = errors.New("privk added twice")
+var ErrTXFailedToRun error = errors.New("not found")
 
 // PrivkManager releases keys to
 type PrivkManager struct {
@@ -181,10 +179,21 @@ func (txw *TxWorker) Run() error {
 	defer free()
 	//send the transaction
 	tx, err := txw.sendTX.SendTransaction(privk)
+	// if failed to send transaction
+	if err != nil {
+		//return an error, key is freed, task will retry
+		return fmt.Errorf("failed to send transaction")
+	}
 	receipt, err := txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
 	rx := make(chan *types.Receipt)
-	for receipt == nil && err == errors.New("not found") {
+	for receipt == nil && err == ErrTXFailedToRun {
 		receipt, err = txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+		//if transaction failed to run on contract
+		if err != nil && err != ErrTXFailedToRun {
+
+			return err
+		}
+		//load the receipt into the channel
 		rx <- receipt
 		select {
 		case Receipt := <-rx:

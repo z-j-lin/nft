@@ -59,8 +59,8 @@ func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 
 //TODO: Implement QBURNTASK
 
-func (tc *TaskClient) newMintTokenTask(accAddr, resourceID string) (*asynq.Task, error) {
-	Data, err := json.Marshal(MintToken{AccountAddress: accAddr, ResourceID: resourceID})
+func (tc *TaskClient) newMintTokenTask(AccAddr, resourceID string) (*asynq.Task, error) {
+	Data, err := json.Marshal(MintToken{AccountAddress: AccAddr, ResourceID: resourceID})
 	if err != nil {
 		return nil, err
 	}

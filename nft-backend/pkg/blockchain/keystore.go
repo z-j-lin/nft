@@ -48,17 +48,14 @@ func createNewAccKs() string {
 	return accAddr
 }
 
-func StoreKs() (string, error) {
+func StoreKs(password, privateKey string) error {
 	keydir := "./tmp"
 	ks := keystore.NewKeyStore(keydir, keystore.StandardScryptN, keystore.StandardScryptP)
-	var (
-		password, privateKey string
-	)
 	/*
-	fmt.Printf("Enter a password: ")
-	fmt.Scanf("%s", &password)
-	fmt.Printf("Enter your privateKey: ")
-	fmt.Scanf("%s", &privateKey)*/
+		fmt.Printf("Enter a password: ")
+		fmt.Scanf("%s", &password)
+		fmt.Printf("Enter your privateKey: ")
+		fmt.Scanf("%s", &privateKey)*/
 
 	//takes privatekey , returns *ecdsa.PrivateKey
 	ECDSAprivateKey, err := crypto.HexToECDSA(privateKey)
@@ -67,11 +64,14 @@ func StoreKs() (string, error) {
 	}
 	//convert PrivateKey string to a *ecdsa.PrivateKey
 	account, err := ks.ImportECDSA(ECDSAprivateKey, password)
+	if err != nil {
+		log.Fatal(err)
+	}
 	accAddr := account.Address.Hex()
 	originalpath := keydir + "/" + findLatestFile(keydir)
 	newpath := keydir + "/" + accAddr
 	os.Rename(originalpath, newpath)
-	return accAddr, nil
+	return nil
 }
 
 func importKs() accounts.Account {

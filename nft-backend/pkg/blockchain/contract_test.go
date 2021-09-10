@@ -25,17 +25,13 @@ func TestDeleteTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	rpcurl := "http://127.0.0.1:9545"
-	contractAddr := "0x1cF20115dD29f7f49Cf6D0a035fAbD71EC1F7161"
+	contractAddr := "0x810dA0c61C3b19087d40cdCa990790351F146dc8"
 	eth, err := NewEtherClient(rpcurl, contractAddr, chainID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	con := eth.Contract
 	//fromAddress := common.HexToAddress("0x7B725F2ae9e159ADD3D49DbEA88C841e8fC52793")
-
-	if err != nil {
-		log.Fatal(err)
-	}
 	gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -70,4 +66,43 @@ func TestDeleteTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%x", tx1.Hash())
+}
+
+func TestSetServerRole(t *testing.T) {
+	rpcurl := "http://127.0.0.1:9545"
+	chainID := big.NewInt(int64(5777))
+	contractAddr := "0x810dA0c61C3b19087d40cdCa990790351F146dc8"
+	eth, err := NewEtherClient(rpcurl, contractAddr, chainID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerAcc := common.HexToAddress("0x3BABA5d61c49a21e7C54E25D6b6be4fd1DaA1D7E")
+	key := eth.Keys[ownerAcc]
+	ownerpk := key.PrivateKey
+	senderAddr := ethcrypto.PubkeyToAddress(ownerpk.PublicKey)
+	auth, err := bind.NewKeyedTransactorWithChainID(ownerpk, chainID)
+	if err != nil {
+		log.Panic(err)
+	}
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(300000)
+
+	accounts := eth.Accounts
+	con := eth.Contract
+	for i, account := range accounts {
+		if i != 1 {
+			gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			auth.GasPrice = gasPrice
+			nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			auth.Nonce = big.NewInt(int64(nonce))
+			con.SetServerRole(auth, account.Address)
+
+		}
+	}
 }

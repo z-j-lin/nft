@@ -47,7 +47,9 @@ contract CAToken is Context, ERC721Burnable, AccessControlEnumerable, Ownable {
         emit Minted(_to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
     }
-
+    function addServerRole(address _serverAddress) public onlyOwner {
+        _setupRole(SERVER_ROLE, _serverAddress);
+    }
     //delete expired contracts
     function expiredContracts(uint256[] memory deleteIds) public {
         //only allow the server to do this
