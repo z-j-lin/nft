@@ -30,32 +30,18 @@ user w/ proof -> srvr -> validates against chain -> returns data
 
 */
 
-func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
-	db, err := redisDb.NewDBinstance()
+func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum, db *redisDb.Database) {
+	pm, err := NewPrivKManager()
 	if err != nil {
-		log.Fatal(err)
-	}
-	consumedMap := make(map[string]bool)
-	availableMap := make(map[string]bool)
-	masterSetMap := make(map[string]ecdsa.PrivateKey)
-	//New key manager instance
-	pm := &PrivkManager{
-		consumedMap:  consumedMap,
-		availableMap: availableMap,
-		masterSetMap: masterSetMap,
+		log.Fatalf("failed to create private key manager: %v", err)
 	}
 	//add keys to the key manager
 	for addr, key := range eth.Keys {
 		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
 	}
-	//used in the server client handler functions
-	hdl := &Handler{
-		PrivkManager: pm,
-		eth:          eth,
-		db:           db,
-	}
+	//task handler object
+	hdl := NewTaskHandler(pm, eth, db)
 	NewServerClient(redisAddr, numWorkers, hdl)
-
 }
 
 func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
@@ -81,7 +67,29 @@ type Handler struct {
 	db           *redisDb.Database
 }
 
+func NewPrivKManager() (*PrivkManager, error) {
+	consumedMap := make(map[string]bool)
+	availableMap := make(map[string]bool)
+	masterSetMap := make(map[string]ecdsa.PrivateKey)
+	//New key manager instance
+	pm := &PrivkManager{
+		consumedMap:  consumedMap,
+		availableMap: availableMap,
+		masterSetMap: masterSetMap,
+	}
+	return pm, nil
+}
+
 //runs as a go routine within the server
+//creates a new minttx and txworker object
+func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database) *Handler {
+	hdl := &Handler{
+		PrivkManager: PM,
+		eth:          eth,
+		db:           db,
+	}
+	return hdl
+}
 func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) error {
 	//data struct stores data for the task
 	var data tasks.MintToken
@@ -90,13 +98,10 @@ func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) erro
 		log.Println("failed to unmarshal task payload in Minttoken Handler")
 		return err
 	}
+	//interface object for sending the mint transaction
 	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, hdl.eth, hdl.db)
-	//start a new txworker, with the mint transaction function
-	NewTX := TxWorker{
-		pm:     hdl.PrivkManager,
-		eth:    hdl.eth,
-		sendTX: send,
-	}
+	//start a new txworker, with the minttx object
+	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
 	//run the worker
 	err = NewTX.Run()
 	//returns the status of the job
@@ -169,6 +174,7 @@ type TxWorker struct {
 }
 
 func NewTXWorker(privKM *PrivkManager, eth *blockchain.Ethereum, send blockchain.Send) *TxWorker {
+
 	return &TxWorker{
 		pm:     privKM,
 		eth:    eth,
