@@ -189,6 +189,9 @@ func (txw *TxWorker) Run() error {
 	}
 	//the key is freed after the transaction is mined
 	defer free()
+	// make a keyed transactor
+	//set transact opts
+
 	//send the transaction
 	tx, err := txw.sendTX.SendTransaction(privk)
 	// if failed to send transaction

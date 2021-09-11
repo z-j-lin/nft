@@ -48,7 +48,7 @@ func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 		return err
 	}
 	// enques the mint task, retries every 10 min until succeeds or max retry count is hit
-	info, err := tc.client.Enqueue(task, asynq.Queue("Mint"), asynq.Timeout(10*time.Minute), asynq.MaxRetry(3))
+	info, err := tc.client.Enqueue(task, asynq.Queue("default"), asynq.Timeout(10*time.Minute), asynq.MaxRetry(3))
 	if err != nil {
 		log.Println("failed to queue the task")
 		return err

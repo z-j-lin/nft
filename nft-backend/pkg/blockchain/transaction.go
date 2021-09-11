@@ -24,6 +24,8 @@ type mintTx struct {
 	db            *redisDb.Database
 	resourceID    string
 }
+type burnTx struct {
+}
 
 //returns the hash of the transaction sent
 func NewMintTransaction(TokenRecipient, resourceID string, eth *Ethereum, rdb *redisDb.Database) Send {
@@ -37,10 +39,12 @@ func NewMintTransaction(TokenRecipient, resourceID string, eth *Ethereum, rdb *r
 	return tranx
 }
 
-func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactOpts {
-	fmt.Println(mtx.eth.chainID)
-	pk := &privateKey
+func NewBurnTransaction() {
 
+}
+
+func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactOpts {
+	pk := &privateKey
 	auth, err := bind.NewKeyedTransactorWithChainID(pk, mtx.eth.chainID)
 	log.Println("getting auth")
 	if err != nil {
@@ -67,14 +71,11 @@ func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactO
 
 //function to send the transaction
 func (mtx *mintTx) SendTransaction(key ecdsa.PrivateKey) (*types.Transaction, error) {
-	addr := ethcrypto.PubkeyToAddress(key.PublicKey)
-
+	//addr := ethcrypto.PubkeyToAddress(key.PublicKey)
 	auth := mtx.init_transactOpt(key)
-
 	//set true for testing monitor
 	auth.NoSend = false
 	//sendtx
-	log.Println("address:", addr)
 	tx, err := mtx.eth.Contract.MintToken(auth, mtx.recipientAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send transaction:   %v", err)

@@ -12,6 +12,10 @@ import (
 )
 
 func TestNewQmon(t *testing.T) {
+	rdb, err := redisDb.NewDBinstance()
+	if err != nil {
+		panic(err)
+	}
 	chainID := big.NewInt(int64(5777))
 	eth, err := blockchain.NewEtherClient("HTTP://127.0.0.1:9545", "0x810dA0c61C3b19087d40cdCa990790351F146dc8", chainID)
 	if err != nil {
@@ -38,7 +42,7 @@ func TestNewQmon(t *testing.T) {
 		}
 	}
 	//start server to process tasks
-	NewQmon(redisAddr, 0, eth)
+	NewQmon(redisAddr, 0, eth, rdb)
 }
 
 func TestAddPrivk(t *testing.T) {

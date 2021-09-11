@@ -89,20 +89,17 @@ func TestSetServerRole(t *testing.T) {
 
 	accounts := eth.Accounts
 	con := eth.Contract
-	for i, account := range accounts {
-		if i != 1 {
-			gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
-			if err != nil {
-				t.Fatal(err)
-			}
-			auth.GasPrice = gasPrice
-			nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
-			if err != nil {
-				t.Fatal(err)
-			}
-			auth.Nonce = big.NewInt(int64(nonce))
-			con.SetServerRole(auth, account.Address)
-
+	for _, account := range accounts {
+		gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
+		if err != nil {
+			t.Fatal(err)
 		}
+		auth.GasPrice = gasPrice
+		nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		auth.Nonce = big.NewInt(int64(nonce))
+		con.SetServerRole(auth, account.Address)
 	}
 }
