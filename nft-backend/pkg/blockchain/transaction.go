@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 )
 
@@ -37,7 +38,14 @@ func NewMintTransaction(TokenRecipient, resourceID string, eth *Ethereum, rdb *r
 }
 
 func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactOpts {
-	auth, err := bind.NewKeyedTransactorWithChainID(&privateKey, mtx.eth.chainID)
+	fmt.Println(mtx.eth.chainID)
+	pk := &privateKey
+
+	auth, err := bind.NewKeyedTransactorWithChainID(pk, mtx.eth.chainID)
+	log.Println("getting auth")
+	if err != nil {
+		log.Fatal(err)
+	}
 	// collect the nonce and the gas price
 	client := mtx.eth.Client
 	fromAddress := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
@@ -59,13 +67,17 @@ func (mtx *mintTx) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactO
 
 //function to send the transaction
 func (mtx *mintTx) SendTransaction(key ecdsa.PrivateKey) (*types.Transaction, error) {
+	addr := ethcrypto.PubkeyToAddress(key.PublicKey)
+
 	auth := mtx.init_transactOpt(key)
+
 	//set true for testing monitor
 	auth.NoSend = false
 	//sendtx
+	log.Println("address:", addr)
 	tx, err := mtx.eth.Contract.MintToken(auth, mtx.recipientAddr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send transaction: %v", err)
+		return nil, fmt.Errorf("failed to send transaction:   %v", err)
 	} else {
 		//if didnt fail add the transaction to the pending list
 		//temp map of resource ID to txn hash

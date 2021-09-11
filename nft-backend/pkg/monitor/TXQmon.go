@@ -31,6 +31,10 @@ user w/ proof -> srvr -> validates against chain -> returns data
 */
 
 func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
+	db, err := redisDb.NewDBinstance()
+	if err != nil {
+		log.Fatal(err)
+	}
 	consumedMap := make(map[string]bool)
 	availableMap := make(map[string]bool)
 	masterSetMap := make(map[string]ecdsa.PrivateKey)
@@ -47,6 +51,8 @@ func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum) {
 	//used in the server client handler functions
 	hdl := &Handler{
 		PrivkManager: pm,
+		eth:          eth,
+		db:           db,
 	}
 	NewServerClient(redisAddr, numWorkers, hdl)
 
