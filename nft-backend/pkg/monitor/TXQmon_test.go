@@ -23,7 +23,7 @@ func TestNewQmon(t *testing.T) {
 	}
 	//load tasks
 	redisAddr := "127.0.0.1:6379"
-	TC := tasks.NewAsyncredisClient(redisAddr)
+	TC := tasks.NewTaskClient(redisAddr)
 	var tests = []struct {
 		address   string
 		contentID string

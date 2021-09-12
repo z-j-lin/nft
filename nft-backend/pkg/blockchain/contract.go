@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/big"
@@ -20,8 +21,9 @@ type Contract struct {
 	DeleteEvent     string
 }
 
-func (c *Contract) init() {
-	instance, err := CAToken.NewCAToken(c.ContractAddress, c.eth.Client)
+func NewContract(eth *Ethereum, ConAddr string) *Contract {
+	ContractAddr := common.HexToAddress(ConAddr)
+	instance, err := CAToken.NewCAToken(ContractAddr, eth.Client)
 	if err != nil {
 		log.Fatalf("failed to initiate contract instance: %v", err)
 	}
@@ -29,20 +31,35 @@ func (c *Contract) init() {
 	LogDeletedTokensSig := []byte("DeletedTokens(uint256[])")
 	LogMintedSigHash := crypto.Keccak256Hash(LogMintedSig).Hex()
 	LogDeletedTokensSigHash := crypto.Keccak256Hash(LogDeletedTokensSig).Hex()
-	c.MintEvent = LogMintedSigHash
-	c.DeleteEvent = LogDeletedTokensSigHash
-	c.Instance = instance
-
+	con := &Contract{
+		MintEvent:       LogMintedSigHash,
+		DeleteEvent:     LogDeletedTokensSigHash,
+		Instance:        instance,
+		eth:             eth,
+		ContractAddress: ContractAddr,
+	}
+	return con
 }
-func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Address) (*types.Transaction, error) {
-	tx, err := c.Instance.Mint(Auth, RecipientAddr)
+func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Address, nonce *big.Int) (*types.Transaction, error) {
+	tx, err := c.Instance.Mint(Auth, RecipientAddr, nonce)
 	if err != nil {
 		log.Println("failed to send transaction @ MintToken:", err)
 		return nil, err
 	}
 	return tx, err
 }
+func (c *Contract) GetInitNonce() (*big.Int, error) {
 
+	opts := &bind.CallOpts{
+		Pending: false,
+		Context: context.TODO(),
+	}
+	nonce, err := c.Instance.CATokenCaller.NextNonce(opts)
+	if err != nil {
+		return nil, err
+	}
+	return nonce, nil
+}
 func (c *Contract) DeleteTokens(auth *bind.TransactOpts, IDs []*big.Int) (*types.Transaction, error) {
 	tx, err := c.Instance.ExpiredContracts(auth, IDs)
 	if err != nil {

@@ -3,16 +3,29 @@ import { Link } from 'react-router-dom';
 import {Menu, Input} from 'semantic-ui-react';
 import Web3 from 'web3'
 import pkg from 'semantic-ui-react/package.json'
+const backendurl = 'http://127.0.0.1:8081/';
 class NavBar extends Component {
   constructor(props){
     super(props);
     this.state = {
-      isLoggedIn: false,
+      isLoggedIn: "0",
       web3: {},
       accounts: []
     };
 
+
   };
+
+  buyHandler(){
+
+  }
+
+  logoutHandler(){
+
+  }
+  inventoryHandler(){
+    
+  }
 
   //function to login
   async loginHandler() {
@@ -23,21 +36,28 @@ class NavBar extends Component {
     var data
     this.state.web3.eth.personal.sign("hello", this.state.accounts[0]).then(
       signature =>{
-      console.log("after login instantiation")
-      data = {"signature": signature, "account": account}
-      console.log(data)
-      const options = {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        credentials: 'include',
-        body: JSON.stringify(data)
-      };
-      fetch('http://127.0.0.1:8080/login', options).then( response => {
-        console.log(response)
-        //change isLoggedIn variable
-      });  
-    })
-    
+        data = {"signature": signature, "account": account}
+        console.log(data)
+        const options = {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          //credentials: 'include',
+          body: JSON.stringify(data)
+        };
+        console.log("data packed up ready to send")
+        console.log(options)
+        fetch(backendurl+'login', options).then( response => {
+          console.log(response)
+          //change isLoggedIn variable
+          return response.json() 
+        }).then(JsonResp => {
+          //sets the state and rerenders all pages with navbar
+          this.setState({isLoggedIn: JsonResp.Isloggedin})
+        })
+      });
   }
 
   async loadWeb3() {
@@ -73,15 +93,23 @@ class NavBar extends Component {
       case "login":
         this.loginHandler()
         break
+      case "logout":
+        this.logoutHandler()
+        break
+      case "buy":
+        this.buyHandler()
+        break
+      case "owned":
+        this.inventorHandler()
+        break
       default:
     }
   }
   render() {
-    const isLoggedIn = this.state.isLoggedIn;
     const { activeItem } = this.state
     
     let nav;
-    if(isLoggedIn){
+    if(this.state.isLoggedIn == "1"){
      nav =( 
      <Menu >
         <Menu.Item

@@ -7,26 +7,31 @@ import (
 
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	objects "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Objects"
+	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
 	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
 /**/
 type monitor struct {
-	eth   *blockchain.Ethereum
-	db    *redisDb.Database
-	state *objects.State
+	eth        *blockchain.Ethereum
+	db         *redisDb.Database
+	state      objects.State
+	taskClient *tasks.TaskClient
 }
 
 //makes an object to start a block monitor from
 //I might make this a go routine that also call Startmon
 func NewBlockMon(ether *blockchain.Ethereum) *monitor {
+	redisAddr := "127.0.0.1:6379"
+	TC := tasks.NewTaskClient(redisAddr)
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
 		log.Fatalf("failed to connect with redisdb: %v", err)
 	}
 	return &monitor{
-		eth: ether,
-		db:  rdb,
+		eth:        ether,
+		db:         rdb,
+		taskClient: TC,
 	}
 }
 
@@ -39,7 +44,7 @@ func (mon *monitor) Startmon() <-chan bool {
 	//initial block of contract
 	if err != nil {
 		RootBlock := uint64(10910043)
-		initState = &objects.State{
+		initState = objects.State{
 			HighestFinalizedBlock: RootBlock,
 			HighestProcessedBlock: RootBlock,
 		}
@@ -55,35 +60,46 @@ func (mon *monitor) Startmon() <-chan bool {
 }
 
 //this function querys for a block every 5 seconds
-func (mon *monitor) monitorloop(state *objects.State, exit <-chan bool) error {
+func (mon *monitor) monitorloop(state objects.State, exit chan bool) error {
+	run := make(chan bool)
 	for {
+		if !state.InSync {
+			run <- true
+		}
 		select {
 		case <-exit:
 			log.Println("recieved kill signal")
 			return nil
 		case <-time.After(5 * time.Second):
-			//get latest block
-			header, err := mon.eth.Client.HeaderByNumber(context.TODO(), nil)
-			if err != nil {
-				log.Fatalf("at monitorloop %v", err)
-			}
-			//highest block added to verification queue
-			currentBlock := state.HighestProcessedBlock + 1
-			//Most recent block added to the block chain
-			latestBlock := header.Number.Uint64()
-			//40 blocks below the most recent block
-			delayedLatestBlock := latestBlock - uint64(40)
-			/*add a block to the verfication queue if
-			the currentblock is less than or eq to delayedLatestBlock */
-			if currentBlock < delayedLatestBlock {
-				mon.db.QPendingBlock(currentBlock)
-				state.HighestProcessedBlock = currentBlock
-				//update state on redis
-				err = mon.db.UpdateState(state)
-				if err != nil {
-					log.Fatal("unable to update state", err)
-				}
-			}
+			mon.getBlock(&state)
+		case <-run:
+			mon.getBlock(&state)
+		}
+	}
+}
+func (mon *monitor) getBlock(state *objects.State) {
+	//get latest block
+	header, err := mon.eth.Client.HeaderByNumber(context.TODO(), nil)
+	if err != nil {
+		log.Fatalf("at monitorloop %v", err)
+	}
+	//Most recent block added to the block chain
+	latestBlock := header.Number.Uint64()
+	//40 blocks below the most recent block
+	delayedLatestBlock := latestBlock - uint64(40)
+
+	//next block to process
+	currentBlock := state.HighestProcessedBlock + 1
+	if delayedLatestBlock < currentBlock+20 {
+		state.InSync = true
+	}
+	if currentBlock < delayedLatestBlock {
+		mon.taskClient.QVerificationTask(int64(currentBlock))
+		state.HighestProcessedBlock = currentBlock
+		//update state on redis
+		err = mon.db.UpdateState(state)
+		if err != nil {
+			log.Fatal("unable to update state", err)
 		}
 	}
 }

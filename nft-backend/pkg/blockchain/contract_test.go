@@ -43,13 +43,14 @@ func TestDeleteTokens(t *testing.T) {
 	auth.GasPrice = gasPrice
 	var tokens []*big.Int
 	tokens = append(tokens, big.NewInt(int64(0)))
+	tnonce, err := eth.Contract.GetInitNonce()
 	for i := 0; i < 3; i++ {
 		nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		auth.Nonce = big.NewInt(int64(nonce))
-		tx0, err := con.MintToken(auth, senderAddr)
+		tx0, err := con.MintToken(auth, senderAddr, tnonce)
 		if err != nil {
 			t.Fatal(err)
 		}

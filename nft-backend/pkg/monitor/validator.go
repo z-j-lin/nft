@@ -17,27 +17,25 @@ type Validator struct {
 	txhash   string
 }
 
-func NewValidator(eth *blockchain.Ethereum, blocknum *big.Int, numWorker chan bool) {
+func NewValidator(eth *blockchain.Ethereum, blocknum *big.Int) error {
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
 		log.Fatal("error creating db instance, ", err)
 	}
-	valid := &Validator{
+	val := &Validator{
 		eth:      eth,
 		Blocknum: blocknum,
 		db:       rdb,
 	}
-	//should return error
-	valid.validateBlock()
-	//this lets the manager know when the job is done
-	_ = <-numWorker
+	return val.validateBlock()
 }
 
-func (v *Validator) validateBlock() {
+func (v *Validator) validateBlock() error {
 	//get the block
 	block, err := v.eth.Client.BlockByNumber(context.TODO(), v.Blocknum)
 	if err != nil {
-		log.Fatal("error getting block at validator, ", err)
+		log.Println("error getting block at validator:", err)
+		return err
 	}
 	//read receipt from block
 	BlockTXs := block.Transactions()
@@ -52,7 +50,8 @@ func (v *Validator) validateBlock() {
 			v.txhash = Txhash.Hex()
 			TxReceipt, err := v.eth.Client.TransactionReceipt(context.TODO(), Txhash)
 			if err != nil {
-				log.Fatal("error getting transaction receipt at validator:", err)
+				log.Println("error getting transaction receipt at validator:", err)
+				return err
 			}
 			//get the logs of the transaction
 			TXlog := TxReceipt.Logs
@@ -61,7 +60,7 @@ func (v *Validator) validateBlock() {
 			v.EventHandler(Log)
 		}
 	}
-	return
+	return nil
 }
 
 func (v *Validator) EventHandler(Log *types.Log) {

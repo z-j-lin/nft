@@ -45,7 +45,6 @@ func TestGetState(t *testing.T) {
 	fmt.Println(State.HighestProcessedBlock)
 }
 func TestUpdateState(t *testing.T) {
-
 	db, err := NewDBinstance()
 	if err != nil {
 		t.Error(err)
@@ -63,5 +62,6 @@ func TestUpdateState(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_ = state
 	//assert.Equal(t, state, State)
 }

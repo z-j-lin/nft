@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/hibiken/asynq"
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
@@ -39,9 +42,37 @@ func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum, db *red
 	for addr, key := range eth.Keys {
 		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
 	}
+	nm := NewNonceManager(eth)
+	if err != nil {
+		log.Panic(err)
+	}
 	//task handler object
-	hdl := NewTaskHandler(pm, eth, db)
+	hdl := NewTaskHandler(pm, eth, db, nm)
 	NewServerClient(redisAddr, numWorkers, hdl)
+}
+
+type NonceMan struct {
+	sync.Mutex
+	nonce int64
+}
+
+func NewNonceManager(eth *blockchain.Ethereum) *NonceMan {
+	//get next nonce from contract
+
+	nonce, err := eth.Contract.GetInitNonce()
+	if err != nil {
+		log.Panic(err)
+	}
+	return &NonceMan{
+		nonce: nonce.Int64(),
+	}
+}
+func (nm *NonceMan) GetnonceWithLock() int64 {
+	nm.Lock()
+	defer nm.Unlock()
+	nonce := nm.nonce
+	nm.nonce = nonce + 1
+	return nonce
 }
 
 func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
@@ -53,7 +84,8 @@ func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 	mux := asynq.NewServeMux()
 	// matches the task type with the function to perform the task
 	mux.HandleFunc(tasks.TypeMintToken, hdl.HandleMintTokenTask)
-	//mux.HandleFunc(TypeBurnTokens)
+	mux.HandleFunc(tasks.TypeBlockVerfication, hdl.HandleVerificationTask)
+	//mux.HandleFunc(tasks.TypeBurnTokens, hdl.HandleBurnTokenTask)
 	//starts the server and blocks until a OS signal to exit is sent to terminate
 	err := srv.Run(mux)
 	if err != nil {
@@ -65,31 +97,21 @@ type Handler struct {
 	PrivkManager *PrivkManager
 	eth          *blockchain.Ethereum
 	db           *redisDb.Database
-}
-
-func NewPrivKManager() (*PrivkManager, error) {
-	consumedMap := make(map[string]bool)
-	availableMap := make(map[string]bool)
-	masterSetMap := make(map[string]ecdsa.PrivateKey)
-	//New key manager instance
-	pm := &PrivkManager{
-		consumedMap:  consumedMap,
-		availableMap: availableMap,
-		masterSetMap: masterSetMap,
-	}
-	return pm, nil
+	nm           *NonceMan
 }
 
 //runs as a go routine within the server
 //creates a new minttx and txworker object
-func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database) *Handler {
+func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database, nm *NonceMan) *Handler {
 	hdl := &Handler{
 		PrivkManager: PM,
 		eth:          eth,
 		db:           db,
+		nm:           nm,
 	}
 	return hdl
 }
+
 func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) error {
 	//data struct stores data for the task
 	var data tasks.MintToken
@@ -99,7 +121,9 @@ func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) erro
 		return err
 	}
 	//interface object for sending the mint transaction
-	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, hdl.eth, hdl.db)
+	tnonce := hdl.nm.GetnonceWithLock()
+	Nonce := big.NewInt(tnonce)
+	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, Nonce, hdl.eth, hdl.db)
 	//start a new txworker, with the minttx object
 	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
 	//run the worker
@@ -107,9 +131,28 @@ func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) erro
 	//returns the status of the job
 	return err
 }
+func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) error {
+	var Data tasks.BlockV
+	err := json.Unmarshal(t.Payload(), &Data)
+	if err != nil {
+		log.Println("failed to unmarshal task payload in Verification Handler")
+		return err
+	}
+	//validate the block
+	err = NewValidator(hdl.eth, big.NewInt(Data.Blocknum))
+	return err
+}
 func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
-	panic("unimplemented")
-	return nil
+	var Data tasks.BurnToken
+	err := json.Unmarshal(t.Payload(), &Data)
+	if err != nil {
+		log.Println("failed to unmarshal task payload in burnToken task Handler")
+		return err
+	}
+	send := blockchain.NewDelTokens(hdl.eth, Data.TokenIDs)
+	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
+	err = NewTX.Run()
+	return err
 }
 
 var ErrNoKeys error = errors.New("no privk available")
@@ -124,6 +167,19 @@ type PrivkManager struct {
 	consumedMap  map[string]bool
 	availableMap map[string]bool
 	masterSetMap map[string]ecdsa.PrivateKey
+}
+
+func NewPrivKManager() (*PrivkManager, error) {
+	consumedMap := make(map[string]bool)
+	availableMap := make(map[string]bool)
+	masterSetMap := make(map[string]ecdsa.PrivateKey)
+	//New key manager instance
+	pm := &PrivkManager{
+		consumedMap:  consumedMap,
+		availableMap: availableMap,
+		masterSetMap: masterSetMap,
+	}
+	return pm, nil
 }
 
 func (pm *PrivkManager) AddPrivk(addr string, privk ecdsa.PrivateKey) error {
@@ -174,7 +230,6 @@ type TxWorker struct {
 }
 
 func NewTXWorker(privKM *PrivkManager, eth *blockchain.Ethereum, send blockchain.Send) *TxWorker {
-
 	return &TxWorker{
 		pm:     privKM,
 		eth:    eth,
@@ -191,9 +246,9 @@ func (txw *TxWorker) Run() error {
 	defer free()
 	// make a keyed transactor
 	//set transact opts
-
+	auth := txw.init_transactOpt(privk)
 	//send the transaction
-	tx, err := txw.sendTX.SendTransaction(privk)
+	tx, err := txw.sendTX.SendTransaction(auth)
 	// if failed to send transaction
 	if err != nil {
 		//return an error, key is freed, task will retry
@@ -227,4 +282,31 @@ func (txw *TxWorker) Run() error {
 	} else {
 		return nil
 	}
+}
+
+// given the private key returns a keyed transactor
+func (txw *TxWorker) init_transactOpt(privateKey ecdsa.PrivateKey) *bind.TransactOpts {
+	pk := &privateKey
+	auth, err := bind.NewKeyedTransactorWithChainID(pk, txw.eth.ChainID)
+	log.Println("getting auth")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// collect the nonce and the gas price
+	client := txw.eth.Client
+	fromAddress := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	//options for transaction
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(300000)
+	auth.GasPrice = gasPrice
+	return auth
 }

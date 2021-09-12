@@ -67,7 +67,7 @@ func (db *Database) DQmint() (account, resourceID string) {
 	return account, resourceID
 }
 
-//this function is used when a burn a burn happened
+//this function is used when a burn happens
 func (db *Database) RemoveToken(tokenID string) {
 	//get Account from token map
 	OwnerAddress := db.Client.HMGet(context.TODO(), tokenID, "Account").String()
@@ -99,33 +99,31 @@ func (db *Database) UpdateState(state *objects.State) error {
 	return err
 }
 
-func (db *Database) GetState() (*objects.State, error) {
+func (db *Database) GetState() (objects.State, error) {
 	//fetch the state from redisDB
 	StateSlice, err := db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock").Result()
+	//if state doesnt exist return values will be all nil for state and err
 	if err != nil {
 		panic(err)
 	}
-	var State *objects.State
-	State.HighestFinalizedBlock, err = strconv.ParseUint(StateSlice[0].(string), 10, 64)
-	if err != nil {
-		panic(err)
+	//if the state variables are not empty on the redis server
+	var State objects.State
+	if StateSlice[1] != nil {
+		State.HighestProcessedBlock, err = strconv.ParseUint(StateSlice[1].(string), 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		if StateSlice[0] != nil {
+			State.HighestFinalizedBlock, err = strconv.ParseUint(StateSlice[0].(string), 10, 64)
+			if err != nil {
+				panic(err)
+			}
+		}
+		return State, nil
+	} else {
+		log.Println("State does not exist on disk")
+		return State, fmt.Errorf("state does not exist on disk")
 	}
-	State.HighestProcessedBlock, err = strconv.ParseUint(StateSlice[1].(string), 10, 64)
-	if err != nil {
-		panic(err)
-	}
-	//need a condition for 0
-	if StateSlice[1] == nil {
-		logger := log.Default()
-		logger.Println("State does not exist on disk")
-		return nil, fmt.Errorf("state does not exist on disk")
-	}
-	if err != nil {
-		log.Println(err, "@GetState")
-	}
-
-	fmt.Printf("stateSlice: %t\n", StateSlice[0])
-	return State, nil
 }
 
 func (db *Database) QPendingBlock(blocknum uint64) error {
@@ -148,14 +146,14 @@ func (db *Database) DQpendingBlock() (Blocknum uint64) {
 
 /*ownership store
 each address gets a hmap
-in the hmap each fied is a tokenID refrencing resourceID
+in the hmap each field is a tokenID refrencing resourceID
 */
 func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) {
 	//each token has a hash map with the tokenID as the key
 	//holds resource ID owners address
 	//the days2live will be stored sorted set
 	TokenHashData := make(map[string]string)
-	TokenHashData["resource"] = resourceID
+	TokenHashData["Resource"] = resourceID
 	TokenHashData["Owner"] = accountAddr
 	//create a tokenID map with tokenID as key, with fields resourceID, AccountOwners
 	//used for serving content ownership array to the client provided the tokenID array

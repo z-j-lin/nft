@@ -13,7 +13,7 @@ import (
 
 type Ethereum struct {
 	Client    *ethclient.Client
-	chainID   *big.Int
+	ChainID   *big.Int
 	Contract  *Contract
 	Accounts  []accounts.Account
 	Keystore  *keystore.KeyStore
@@ -21,7 +21,22 @@ type Ethereum struct {
 	Passcodes map[common.Address]string
 }
 
-/*initializes a client to rpc. */
+// used Rest API
+func NewKeylessEthClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum, error) {
+	ethClient, err := ethclient.Dial(rpcurl)
+	if err != nil {
+		log.Printf("error @ NewEtherClient unable to dial RPC endpoint: %v", err)
+		return nil, err
+	}
+	eth := &Ethereum{
+		Client:  ethClient,
+		ChainID: chainID,
+	}
+	eth.Contract = NewContract(eth, contractAddress)
+	return eth, nil
+}
+
+//Used for transactions only
 func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum, error) {
 	ethClient, err := ethclient.Dial(rpcurl)
 	if err != nil {
@@ -31,7 +46,7 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 	keys := make(map[common.Address]*keystore.Key)
 	eth := &Ethereum{
 		Client:  ethClient,
-		chainID: chainID,
+		ChainID: chainID,
 		Keys:    keys,
 	}
 	eth.loadaccount()
@@ -40,11 +55,7 @@ func NewEtherClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum
 	if err != nil {
 		return nil, err
 	}
-	eth.Contract = &Contract{
-		eth:             eth,
-		ContractAddress: common.HexToAddress(contractAddress),
-	}
-	eth.Contract.init()
+	eth.Contract = NewContract(eth, contractAddress)
 	return eth, nil
 }
 func (eth *Ethereum) loadpasscode() {
