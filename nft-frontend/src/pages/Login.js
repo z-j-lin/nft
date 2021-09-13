@@ -1,6 +1,7 @@
 import React from 'react';
 import Web3 from 'web3'
 import { Container, Form, Grid, Header, Message, Button } from 'semantic-ui-react';
+
 class Login extends React.Component{
  
   constructor(props){

@@ -1,8 +1,9 @@
 import React from 'react';
+import ContentCard from '../Components/ItemCard';
 
 const HomePage = () => (
   <>
-    <h1>hello</h1>
+    <ContentCard contentID="thing1"/>
   </>
 
 );

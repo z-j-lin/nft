@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
 	tasks "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Tasks"
 )
 
@@ -42,6 +43,29 @@ type loginRes struct {
 type TokenRegistry struct {
 	resourceID string
 	Account    string
+}
+
+func ContentStore(w http.ResponseWriter, r *http.Request) {
+	db, err := redisDb.NewDBinstance()
+	if err != nil {
+		panic(err)
+	}
+	store, err := db.GetStore()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("500 - Something bad happened!"))
+		return
+	}
+	//encode the object into byte form
+	respBytes, err := json.Marshal(store)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("500 - Something bad happened!"))
+	} else {
+		//send back the store content
+		w.Write(respBytes)
+	}
+
 }
 
 //handler function for buying a token

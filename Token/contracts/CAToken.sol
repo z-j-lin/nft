@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./contracts/token/ERC721/ERC721.sol";
 import "./contracts/access/Ownable.sol";
 import "./contracts/utils/Counters.sol";
-import "./contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "./contracts/access/AccessControlEnumerable.sol";
 import "./contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
@@ -15,8 +14,7 @@ interface ExpiredContracts{
 
 contract CAToken is 
     Context, 
-    ERC721Burnable, 
-    AccessControlEnumerable, Ownable {
+    AccessControlEnumerable, Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
     //mapping of used nonces 
     mapping(uint256 => bool) public usedNonce;
@@ -43,7 +41,7 @@ contract CAToken is
         nextNonce.increment();
     }
     
-    function mint(address _to, /*string memory _resourceID,*/ uint256 _nonce) public virtual{
+    function mint(address _to, string memory _resourceID, uint256 _nonce) public virtual{
         require(
             hasRole(SERVER_ROLE, _msgSender()),
             "you don't have access to the minting function"
@@ -52,7 +50,7 @@ contract CAToken is
         //require unique tokenID
         _mint(_to, _tokenIdTracker.current());
         //set the Resource ID 
-       // ERC721URIStorage._setTokenURI(_tokenIdTracker.current(), _resourceID);
+        _setTokenURI(_tokenIdTracker.current(), _resourceID);
         usedNonce[_nonce] = true;
         //emit information about the token
         emit Minted(_to, _tokenIdTracker.current());
@@ -71,7 +69,7 @@ contract CAToken is
         );
         //batch delete the tokens
         for (uint256 i = 0; i < deleteIds.length; i++) {
-            ERC721Burnable.burn(deleteIds[i]);
+            _burn(deleteIds[i]);
         }
         emit DeletedTokens(deleteIds); 
     }

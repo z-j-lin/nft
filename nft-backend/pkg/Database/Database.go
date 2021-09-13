@@ -143,6 +143,18 @@ func (db *Database) DQpendingBlock() (Blocknum uint64) {
 	}
 	return
 }
+func (db *Database) AddItem(contentID string) error {
+	err := db.Client.SAdd(context.TODO(), "store", contentID).Err()
+	return err
+}
+
+func (db *Database) GetStore() ([]string, error) {
+	store, err := db.Client.SMembers(context.TODO(), "store").Result()
+	if err != nil {
+		return store, err
+	}
+	return store, nil
+}
 
 /*ownership store
 each address gets a hmap
