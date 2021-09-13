@@ -24,9 +24,9 @@ class NavBar extends Component {
 
   }
   inventoryHandler(){
-    
-  }
 
+  }
+  
   //function to login
   async loginHandler() {
     //run the login comp
@@ -59,7 +59,7 @@ class NavBar extends Component {
         })
       });
   }
-
+  
   async loadWeb3() {
     if(window.ethereum){
       window.web3 = new Web3(window.ethereum);
@@ -107,16 +107,25 @@ class NavBar extends Component {
   }
   render() {
     const { activeItem } = this.state
-    
     let nav;
     if(this.state.isLoggedIn == "1"){
      nav =( 
      <Menu >
         <Menu.Item
-          name='buy'
-          active={activeItem === 'home'}
+          name='Store'
+          active={activeItem === 'Store'}
           onClick={this.handleItemClick}
-        />
+        >
+          <Link 
+            to='/store'
+            state={{web3: this.state.web3,
+                    accounts: this.state.accounts
+                  }}
+          >
+          
+          </Link>
+        </Menu.Item>
+        
         <Menu.Item
           name='owned'
           active={activeItem === 'messages'}
