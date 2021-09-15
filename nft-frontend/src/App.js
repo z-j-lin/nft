@@ -19,45 +19,20 @@ class App extends Component {
       accounts: []
     };
   }
-
-  async componentWillMount() {
-    await this.loadWeb3();
-    await this.loadBlockchainData();
-  };
-  async loadWeb3() {
-    if(window.ethereum){
-      window.web3 = new Web3(window.ethereum);
-      await window.ethereum.enable();
-    }
-    else if (window.web3){
-      window.web3 = new Web3(window.web3.currentProvider)
-    }
-    else{
-      window.alert('no ethereum browser detect, try installing metamask')
-    }
-  };
-
-  async  loadBlockchainData() {
-    const web3 = window.web3;
-    console.log(web3)
-    //load account
-    const accounts = await web3.eth.getAccounts()
-    this.setState({
-      web3: web3,
-      accounts: accounts
-    })  
-  };
-
+  //this should take web3 client after the log in and pass it App's state
+  pass_web3 = (web, account) => {
+    this.setState({web3: web, accounts: account})
+  }
 
 
   render(){
     return (
       <Container>
-        <NavBar/>
         <Router>
+          <NavBar func ={this.pass_web3}/>
           <div className="App"> 
             <Route path="/" component={HomePage} exact/>
-            <Route path="/store" component={Store} exact/>
+            <Route path="/store" exact><Store web3={this.state.web3} accounts={this.state.accounts}/></Route> 
           </div>
         </Router>
       </Container>

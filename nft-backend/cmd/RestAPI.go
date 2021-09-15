@@ -46,18 +46,24 @@ type TokenRegistry struct {
 }
 
 func ContentStore(w http.ResponseWriter, r *http.Request) {
+	log.Println("reached the login endpoint")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	w.WriteHeader(http.StatusOK)
+
 	db, err := redisDb.NewDBinstance()
 	if err != nil {
 		panic(err)
 	}
-	store, err := db.GetStore()
+	Cstore, err := db.GetStore()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("500 - Something bad happened!"))
 		return
 	}
 	//encode the object into byte form
-	respBytes, err := json.Marshal(store)
+	respBytes, err := json.Marshal(Cstore)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("500 - Something bad happened!"))
@@ -70,28 +76,54 @@ func ContentStore(w http.ResponseWriter, r *http.Request) {
 
 //handler function for buying a token
 func BuyToken(w http.ResponseWriter, r *http.Request) {
-	var buy TokenRegistry
-	//decode body
-	err := json.NewDecoder(r.Body).Decode(&buy)
-	if err != nil {
-		panic(err)
-	}
-	session, _ := store.Get(r, buy.Account)
-	//verify user credential
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-	TC := tasks.NewTaskClient(redisAddr)
 
-	//add transaction to the queue
-	// TODO: HANDLE ERROR AND PASS INFO BACK TO CALLER
-	err = TC.QMintTask(buy.Account, buy.resourceID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("500 - Something bad happened!"))
+	if r.Method == "OPTIONS" {
+		log.Println("reached the buytoken endpoint preflight")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.WriteHeader(http.StatusOK)
 	}
+	if r.Method == "POST" {
+		log.Println("reached the buytoken endpoint")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		//get the content of type of the incoming request
+		contentT := r.Header.Get("Content-Type")
+		if contentT == "application/json" {
+			//container for the login json data
+			var buy TokenRegistry
+			//decode body
+			err := json.NewDecoder(r.Body).Decode(&buy)
+			if err != nil {
+				log.Println("unable to decode json pack", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Something bad happened!"))
+				return
+			}
+			log.Println("buy account:", buy.Account)
+			session, _ := store.Get(r, buy.Account)
+			//verify user credential
+			auth, ok := session.Values["authenticated"].(bool)
+			log.Println("authentication", auth, ok)
+			if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+			TC := tasks.NewTaskClient(redisAddr)
 
+			//add transaction to the queue
+			// TODO: HANDLE ERROR AND PASS INFO BACK TO CALLER
+			err = TC.QMintTask(buy.Account, buy.resourceID)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Something bad happened!"))
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+		}
+	}
 }
 
 //on request send back access tokens to user
@@ -172,7 +204,7 @@ type loginReq struct {
 //handler for login
 func login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
-		log.Println("reached the login endpoint")
+		log.Println("reached the login endpoint preflight")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
@@ -190,10 +222,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 			var loginR loginReq
 			err := json.NewDecoder(r.Body).Decode(&loginR)
 			if err != nil {
-				log.Fatalf("unable to decode json pack %v", err)
+				log.Println("unable to decode json pack", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Something bad happened!"))
+				return
 			}
-			log.Println(loginR)
 			//gets a cookie
+			log.Println("account logging in:", loginR.Account)
 			session, _ := store.Get(r, loginR.Account)
 			//authenticate
 			isOwner, err := verify(loginR.Account, "hello", loginR.Signature)
@@ -203,8 +238,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 			//if verification is true let user in
 			if isOwner {
 				//TODO: set session ID
+				log.Println("logged in:", session.Values["authenticated"])
 				session.Values["authenticated"] = true
+				log.Println("authenticated in:", session.Values["authenticated"])
+				auth, ok := session.Values["authenticated"].(bool)
+				log.Println("authentication", auth, ok)
 				session.Save(r, w)
+				auth, ok = session.Values["authenticated"].(bool)
+				log.Println("authentication", auth, ok)
 				log.Printf("session ID: %s, isNew: %t, name: %s", session.ID, session.IsNew, session.Name())
 				//send back login acknoledgment
 				loginres := loginRes{
@@ -222,15 +263,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var dir string
+	store.Options.Path = "/"
 	flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
 
 	//contractAddress := "0x097063E71919E1C4af55F6468DF5295C76993bFb"
 	router := mux.NewRouter()
 	router.HandleFunc("/login", login).Methods("POST", "OPTIONS")
 	router.HandleFunc("/logout", logout).Methods("POST")
-	router.HandleFunc("/buy", BuyToken).Methods("POST")
+	router.HandleFunc("/buy", BuyToken).Methods("POST", "OPTIONS")
 	//sends back an array resources owned by address
 	router.HandleFunc("/load", LoadAccessTokens).Methods("GET")
+	router.HandleFunc("/getstore", ContentStore).Methods("GET")
 	router.HandleFunc("request/{resourceID}", fetchResource).Methods("GET")
 	http.Handle("/", router)
 

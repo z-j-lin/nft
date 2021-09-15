@@ -15,7 +15,12 @@ class NavBar extends Component {
 
 
   };
-
+  /*
+  getJwt = async () => {
+    const { data } = await axios.get(`/jwt`);
+    setJwt(data.token);
+  }
+*/
   buyHandler(){
 
   }
@@ -26,7 +31,7 @@ class NavBar extends Component {
   inventoryHandler(){
 
   }
-  
+
   //function to login
   async loginHandler() {
     //run the login comp
@@ -47,13 +52,16 @@ class NavBar extends Component {
           //credentials: 'include',
           body: JSON.stringify(data)
         };
-        console.log("data packed up ready to send")
         console.log(options)
         fetch(backendurl+'login', options).then( response => {
-          console.log(response)
+          console.log(response.headers)
           //change isLoggedIn variable
           return response.json() 
         }).then(JsonResp => {
+          console.log(JsonResp)
+          if (JsonResp.Isloggedin === "1"){
+            this.props.func(this.state.web3, this.state.accounts)
+          }
           //sets the state and rerenders all pages with navbar
           this.setState({isLoggedIn: JsonResp.Isloggedin})
         })
@@ -100,7 +108,7 @@ class NavBar extends Component {
         this.buyHandler()
         break
       case "owned":
-        this.inventorHandler()
+        this.inventoryHandler()
         break
       default:
     }
@@ -109,28 +117,21 @@ class NavBar extends Component {
     const { activeItem } = this.state
     let nav;
     if(this.state.isLoggedIn == "1"){
-     nav =( 
-     <Menu >
-        <Menu.Item
-          name='Store'
-          active={activeItem === 'Store'}
-          onClick={this.handleItemClick}
+      nav =( 
+      <Menu >
+        <Menu.Item as={Link} 
+        to="/store"
+        name='Store'
+        active={activeItem === 'Store'}
+        onClick={this.handleItemClick}
         >
-          <Link 
-            to='/store'
-            state={{web3: this.state.web3,
-                    accounts: this.state.accounts
-                  }}
-          >
-          
-          </Link>
-        </Menu.Item>
-        
+        </Menu.Item>   
         <Menu.Item
           name='owned'
           active={activeItem === 'messages'}
           onClick={this.handleItemClick}
         />
+        <Link to="/store"/>
         <Menu.Menu position='right'>
           <Menu.Item
             name='logout'
@@ -155,9 +156,9 @@ class NavBar extends Component {
       )
     }
     return(
-      <div>
+      <>
       {nav}
-      </div>
+      </>
     );
   }
 }
