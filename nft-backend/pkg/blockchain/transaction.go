@@ -1,8 +1,8 @@
 package blockchain
 
 import (
-	"context"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,12 +18,9 @@ type Send interface {
 type mintTx struct {
 	eth           *Ethereum
 	recipientAddr common.Address
-	db            *redisDb.Database
 	resourceID    string
 	nonce         *big.Int
 	Auth          *bind.TransactOpts
-}
-type burnTx struct {
 }
 
 //returns the hash of the transaction sent
@@ -33,7 +30,6 @@ func NewMintTransaction(TokenRecipient, resourceID string, tnonce *big.Int, eth 
 		recipientAddr: traddr,
 		resourceID:    resourceID,
 		eth:           eth,
-		db:            rdb,
 		nonce:         tnonce,
 	}
 }
@@ -42,17 +38,13 @@ func NewMintTransaction(TokenRecipient, resourceID string, tnonce *big.Int, eth 
 func (mtx *mintTx) SendTransaction(auth *bind.TransactOpts) (*types.Transaction, error) {
 	//addr := ethcrypto.PubkeyToAddress(key.PublicKey)
 	//sendtx
-	tx, err := mtx.eth.Contract.MintToken(auth, mtx.recipientAddr, mtx.nonce)
+	log.Printf("Transaction: recipientAddr: %v, resourceID: %s TxNonce: %d\n", mtx.recipientAddr, mtx.resourceID, mtx.nonce)
+	tx, err := mtx.eth.Contract.MintToken(auth, mtx.recipientAddr, mtx.resourceID, mtx.nonce)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send transaction:   %v", err)
 	} else {
-		//if didnt fail add the transaction to the pending list
-		//temp map of resource ID to txn hash
-		mtx.db.Client.Set(context.TODO(), tx.Hash().Hex(), mtx.resourceID, 0)
-		fmt.Println("transaction added to pending que")
 		return tx, nil
 	}
-
 }
 
 type DelTokens struct {

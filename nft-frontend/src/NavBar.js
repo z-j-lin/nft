@@ -12,8 +12,6 @@ class NavBar extends Component {
       web3: {},
       accounts: []
     };
-
-
   };
   /*
   getJwt = async () => {
@@ -46,6 +44,7 @@ class NavBar extends Component {
         const options = {
           method: 'POST',
           mode: 'cors',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },

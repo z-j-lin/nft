@@ -1,4 +1,4 @@
-package tasks
+package Tasks
 
 import (
 	"encoding/json"
@@ -51,7 +51,7 @@ func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 	/* enques the mint task,
 	retries every 10 min until succeeds
 	or max retry count is hit*/
-	info, err := tc.client.Enqueue(task, asynq.Queue("default"), asynq.Timeout(10*time.Minute), asynq.MaxRetry(3))
+	info, err := tc.client.Enqueue(task, asynq.Queue("transactions"), asynq.Timeout(10*time.Minute), asynq.MaxRetry(3))
 	if err != nil {
 		log.Println("failed to queue the task")
 		return err
@@ -98,7 +98,7 @@ func (tc *TaskClient) QVerificationTask(blocknum int64) error {
 	or max retry count is hit*/
 	info, err := tc.client.Enqueue(
 		task,
-		asynq.Queue("default"),
+		asynq.Queue("validations"),
 		asynq.Timeout(10*time.Minute),
 		asynq.MaxRetry(3),
 	)

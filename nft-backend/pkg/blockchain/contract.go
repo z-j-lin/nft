@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,7 +19,7 @@ type Contract struct {
 	eth             *Ethereum
 	Instance        *CAToken.CAToken
 	MintEvent       string
-	DeleteEvent     string
+	TransferEvent   string
 }
 
 func NewContract(eth *Ethereum, ConAddr string) *Contract {
@@ -28,28 +29,31 @@ func NewContract(eth *Ethereum, ConAddr string) *Contract {
 		log.Fatalf("failed to initiate contract instance: %v", err)
 	}
 	LogMintedSig := []byte("Minted(address,uint256)")
-	LogDeletedTokensSig := []byte("DeletedTokens(uint256[])")
+	LogTokenTransferSig := []byte("Transfer(address, address, uint256)")
 	LogMintedSigHash := crypto.Keccak256Hash(LogMintedSig).Hex()
-	LogDeletedTokensSigHash := crypto.Keccak256Hash(LogDeletedTokensSig).Hex()
+	LogTokenTransferSigHash := crypto.Keccak256Hash(LogTokenTransferSig).Hex()
 	con := &Contract{
 		MintEvent:       LogMintedSigHash,
-		DeleteEvent:     LogDeletedTokensSigHash,
+		TransferEvent:   LogTokenTransferSigHash,
 		Instance:        instance,
 		eth:             eth,
 		ContractAddress: ContractAddr,
 	}
 	return con
 }
-func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Address, nonce *big.Int) (*types.Transaction, error) {
-	tx, err := c.Instance.Mint(Auth, RecipientAddr, nonce)
+func (c *Contract) MintToken(Auth *bind.TransactOpts, RecipientAddr common.Address, resourceID string, nonce *big.Int) (*types.Transaction, error) {
+	tx, err := c.Instance.Mint(Auth, RecipientAddr, resourceID, nonce)
 	if err != nil {
 		log.Println("failed to send transaction @ MintToken:", err)
 		return nil, err
 	}
 	return tx, err
 }
-func (c *Contract) GetInitNonce() (*big.Int, error) {
 
+//gets the next unused nonce from the contract
+//only use for inital startup
+//this is not concurrency safe
+func (c *Contract) GetInitNonce() (*big.Int, error) {
 	opts := &bind.CallOpts{
 		Pending: false,
 		Context: context.TODO(),
@@ -60,6 +64,7 @@ func (c *Contract) GetInitNonce() (*big.Int, error) {
 	}
 	return nonce, nil
 }
+
 func (c *Contract) DeleteTokens(auth *bind.TransactOpts, IDs []*big.Int) (*types.Transaction, error) {
 	tx, err := c.Instance.ExpiredContracts(auth, IDs)
 	if err != nil {
@@ -78,9 +83,14 @@ func (c *Contract) SetServerRole(Auth *bind.TransactOpts, serverAddress common.A
 }
 
 //check if owner owns token
-func (c *Contract) IsOwner(CallOpts *bind.CallOpts, address common.Address, tokenID int64) (bool, error) {
+func (c *Contract) IsOwner(address common.Address, tokenID int64) (bool, error) {
+	//TODO: use highest delayed block by 20 blocks
+	opts := &bind.CallOpts{
+		Pending: false,
+		Context: context.TODO(),
+	}
 	TID := big.NewInt(tokenID)
-	ownerAddr, err := c.Instance.OwnerOf(CallOpts, TID)
+	ownerAddr, err := c.Instance.OwnerOf(opts, TID)
 	if err != nil {
 		return false, err
 	}
@@ -91,7 +101,23 @@ func (c *Contract) IsOwner(CallOpts *bind.CallOpts, address common.Address, toke
 	}
 }
 
+func (c *Contract) GetResourceID(tokenID string) (string, error) {
+	//TODO: use highest delayed block by 20 blocks
+	opts := &bind.CallOpts{
+		Pending: false,
+		Context: context.TODO(),
+	}
+	tID, err := strconv.Atoi(tokenID)
+	if err != nil {
+		return "", err
+	}
+	tokenIDint := big.NewInt(int64(tID))
+	TokenURI, err := c.Instance.TokenURI(opts, tokenIDint)
+	return TokenURI, err
+}
+
 func (c *Contract) SafeTransferFrom(Auth *bind.TransactOpts, Owneraddress, Recipient common.Address, tokenID int64) (*types.Transaction, error) {
+
 	TID := big.NewInt(tokenID)
 	tx, err := c.Instance.SafeTransferFrom(Auth, Owneraddress, Recipient, TID)
 	return tx, err

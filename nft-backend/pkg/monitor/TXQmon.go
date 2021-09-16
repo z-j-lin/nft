@@ -3,8 +3,6 @@ package monitor
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -42,12 +40,8 @@ func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum, db *red
 	for addr, key := range eth.Keys {
 		pm.AddPrivk(addr.Hex(), *key.PrivateKey)
 	}
-	nm := NewNonceManager(eth)
-	if err != nil {
-		log.Panic(err)
-	}
 	//task handler object
-	hdl := NewTaskHandler(pm, eth, db, nm)
+	hdl := NewTaskHandler(pm, eth, db)
 	NewServerClient(redisAddr, numWorkers, hdl)
 }
 
@@ -56,30 +50,17 @@ type NonceMan struct {
 	nonce int64
 }
 
-func NewNonceManager(eth *blockchain.Ethereum) *NonceMan {
-	//get next nonce from contract
-
-	nonce, err := eth.Contract.GetInitNonce()
-	if err != nil {
-		log.Panic(err)
-	}
-	return &NonceMan{
-		nonce: nonce.Int64(),
-	}
-}
-func (nm *NonceMan) GetnonceWithLock() int64 {
-	nm.Lock()
-	defer nm.Unlock()
-	nonce := nm.nonce
-	nm.nonce = nonce + 1
-	return nonce
-}
-
 func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		//if concurrency is 0, the default would be # accessable CPU
-		asynq.Config{Concurrency: 0},
+		asynq.Config{
+			Concurrency: 0,
+			Queues: map[string]int{
+				"transactions": 5,
+				"validations":  5,
+			},
+		},
 	)
 	mux := asynq.NewServeMux()
 	// matches the task type with the function to perform the task
@@ -93,135 +74,6 @@ func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 	}
 }
 
-type Handler struct {
-	PrivkManager *PrivkManager
-	eth          *blockchain.Ethereum
-	db           *redisDb.Database
-	nm           *NonceMan
-}
-
-//runs as a go routine within the server
-//creates a new minttx and txworker object
-func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database, nm *NonceMan) *Handler {
-	hdl := &Handler{
-		PrivkManager: PM,
-		eth:          eth,
-		db:           db,
-		nm:           nm,
-	}
-	return hdl
-}
-
-func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) error {
-	//data struct stores data for the task
-	var data tasks.MintToken
-	err := json.Unmarshal(t.Payload(), &data)
-	if err != nil {
-		log.Println("failed to unmarshal task payload in Minttoken Handler")
-		return err
-	}
-	//interface object for sending the mint transaction
-	tnonce := hdl.nm.GetnonceWithLock()
-	Nonce := big.NewInt(tnonce)
-	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, Nonce, hdl.eth, hdl.db)
-	//start a new txworker, with the minttx object
-	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
-	//run the worker
-	err = NewTX.Run()
-	//returns the status of the job
-	return err
-}
-func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) error {
-	var Data tasks.BlockV
-	err := json.Unmarshal(t.Payload(), &Data)
-	if err != nil {
-		log.Println("failed to unmarshal task payload in Verification Handler")
-		return err
-	}
-	//validate the block
-	err = NewValidator(hdl.eth, big.NewInt(Data.Blocknum))
-	return err
-}
-func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
-	var Data tasks.BurnToken
-	err := json.Unmarshal(t.Payload(), &Data)
-	if err != nil {
-		log.Println("failed to unmarshal task payload in burnToken task Handler")
-		return err
-	}
-	send := blockchain.NewDelTokens(hdl.eth, Data.TokenIDs)
-	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
-	err = NewTX.Run()
-	return err
-}
-
-var ErrNoKeys error = errors.New("no privk available")
-var ErrKeyConflict error = errors.New("privk added twice")
-var ErrTXFailedToRun error = errors.New("not found")
-
-// PrivkManager releases keys to
-type PrivkManager struct {
-	sync.Mutex
-	// stores all possibe private keys OR knows where to go get them
-	// string key is the ether account
-	consumedMap  map[string]bool
-	availableMap map[string]bool
-	masterSetMap map[string]ecdsa.PrivateKey
-}
-
-func NewPrivKManager() (*PrivkManager, error) {
-	consumedMap := make(map[string]bool)
-	availableMap := make(map[string]bool)
-	masterSetMap := make(map[string]ecdsa.PrivateKey)
-	//New key manager instance
-	pm := &PrivkManager{
-		consumedMap:  consumedMap,
-		availableMap: availableMap,
-		masterSetMap: masterSetMap,
-	}
-	return pm, nil
-}
-
-func (pm *PrivkManager) AddPrivk(addr string, privk ecdsa.PrivateKey) error {
-	pm.Lock()
-	defer pm.Unlock()
-	_, ok := pm.masterSetMap[addr]
-	if ok {
-		return ErrKeyConflict
-	}
-	pm.masterSetMap[addr] = privk
-	pm.availableMap[addr] = true
-	return nil
-}
-
-func (pm *PrivkManager) GetWithLock() (ecdsa.PrivateKey, func(), error) {
-	pm.Lock()
-	defer pm.Unlock()
-	var privkAddr string
-	for _privkAddr := range pm.availableMap {
-		privkAddr = _privkAddr
-		break
-	}
-	if privkAddr == "" {
-		return ecdsa.PrivateKey{}, nil, ErrNoKeys
-	}
-
-	privk := pm.masterSetMap[privkAddr]
-	delete(pm.availableMap, privkAddr)
-	pm.consumedMap[privkAddr] = true
-	return privk, pm.free(privkAddr), nil
-}
-
-func (pm *PrivkManager) free(privkAddr string) func() {
-	return func() {
-		//does it need mutex lock? each worker will have a unique key
-		pm.Lock()
-		defer pm.Unlock()
-		delete(pm.consumedMap, privkAddr)
-		pm.availableMap[privkAddr] = true
-	}
-}
-
 //worker with access to private key manager
 type TxWorker struct {
 	pm     *PrivkManager
@@ -229,6 +81,8 @@ type TxWorker struct {
 	sendTX blockchain.Send
 }
 
+//wrapper object for transactions tasks
+//gets the private key from the key manager
 func NewTXWorker(privKM *PrivkManager, eth *blockchain.Ethereum, send blockchain.Send) *TxWorker {
 	return &TxWorker{
 		pm:     privKM,

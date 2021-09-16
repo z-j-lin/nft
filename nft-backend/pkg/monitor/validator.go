@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -21,13 +22,15 @@ func NewValidator(eth *blockchain.Ethereum, blocknum *big.Int) error {
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
 		log.Fatal("error creating db instance, ", err)
+		return err
 	}
 	val := &Validator{
 		eth:      eth,
 		Blocknum: blocknum,
 		db:       rdb,
 	}
-	return val.validateBlock()
+	err = val.validateBlock()
+	return err
 }
 
 func (v *Validator) validateBlock() error {
@@ -63,19 +66,31 @@ func (v *Validator) validateBlock() error {
 	return nil
 }
 
-func (v *Validator) EventHandler(Log *types.Log) {
+func (v *Validator) EventHandler(Log *types.Log) error {
 	switch Log.Topics[0].Hex() {
 	case v.eth.Contract.MintEvent:
 		//extract the token recipient address
 		RecipientAddr := Log.Topics[1].Hex()
 		tokenID := Log.Topics[2].String()
-		resourceID := v.db.Client.Get(context.TODO(), v.txhash).String()
+		//get the resourceID from the contract
+		resourceID, err := v.eth.Contract.GetResourceID(tokenID)
+		if err != nil {
+			log.Println("validator: error occured getting resourceID")
+			return err
+		}
 		//add recipient Address and token id to registry
-		v.db.StoreOwnership(resourceID, RecipientAddr, tokenID, 10)
-		//remove map of resourceID
-		v.db.Client.Del(context.TODO(), v.txhash)
-	case v.eth.Contract.DeleteEvent:
-
-		//deleteArray := Log.Topics[1].Value()
+		err = v.db.StoreOwnership(resourceID, RecipientAddr, tokenID, 10)
+		return err
+	case v.eth.Contract.TransferEvent:
+		from := Log.Topics[1].Hex()
+		to := Log.Topics[2].String()
+		tokenID := v.db.Client.Get(context.TODO(), v.txhash).String()
+		fmt.Println("to Address", to)
+		fmt.Println("from Address", from)
+		fmt.Println("TokenID", tokenID)
+		return nil
+	default:
+		return nil
 	}
+
 }

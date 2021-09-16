@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func subToConEventLog() {
+func SubToConEventLog() {
 	rpcurl := "wss://ropsten.infura.io/ws/v3/27c2937f16d14d33a4c8315e22109f09"
 	client, err := ethclient.Dial(rpcurl)
 	if err != nil {

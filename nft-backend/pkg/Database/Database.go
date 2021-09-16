@@ -36,35 +36,12 @@ func NewDBinstance() (*Database, error) {
 
 ////////////////////////////////////////////////////////////////////////////
 
-//add to mint queue
-//stores the address in a list
-func (db *Database) Qmint(address, resourceID string) error {
-	//create a key for the set
-	Job := address + resourceID
-	//push the job on the mintq list
-	numElem, err := db.Client.LPush(context.TODO(), "MintQ", Job).Result()
+func (db *Database) GetAccTokens(accountAddr string) ([]string, error) {
+	AccTokens, err := db.Client.SMembers(context.TODO(), accountAddr).Result()
 	if err != nil {
-		return err
+		return AccTokens, err
 	}
-	if numElem != 1 {
-		panic("should not happen")
-	}
-	return nil
-}
-
-//take off the transaction queue
-func (db *Database) DQmint() (account, resourceID string) {
-	//BRPOP from the end of mint
-	Job, err := db.Client.BRPop(context.TODO(), 1*time.Second, "MintQ").Result()
-	if err != nil && err != redis.Nil {
-		panic(err)
-	}
-	if err != redis.Nil {
-		account := Job[1][:42]
-		resourceID := Job[1][42:]
-		return account, resourceID
-	}
-	return account, resourceID
+	return AccTokens, nil
 }
 
 //this function is used when a burn happens
@@ -126,6 +103,7 @@ func (db *Database) GetState() (objects.State, error) {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////
 func (db *Database) QPendingBlock(blocknum uint64) error {
 	db.Client.LPush(context.TODO(), "PendingBlock", blocknum)
 	return nil
@@ -160,7 +138,7 @@ func (db *Database) GetStore() ([]string, error) {
 each address gets a hmap
 in the hmap each field is a tokenID refrencing resourceID
 */
-func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) {
+func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) error {
 	//each token has a hash map with the tokenID as the key
 	//holds resource ID owners address
 	//the days2live will be stored sorted set
@@ -173,24 +151,29 @@ func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days
 	err := db.Client.HSet(context.TODO(), tokenID, TokenHashData).Err()
 
 	if err != nil {
-		log.Panicf("failed to create token hash: %v", err)
+		log.Printf("db: failed to create token hash: %v\n", err)
+		return err
 	}
 	//stores tokenID into owners set. this is done so we dont have to iterate through all the takenID hashmaps to find tokens
 	//this is used for loading the owned page on the client side
 	err = db.Client.SAdd(context.TODO(), accountAddr, tokenID).Err()
 	if err != nil {
-		log.Panicf("failed to store tokenID into owners set: %v", err)
+		log.Printf("db: failed to store tokenID into owners set: %v\n", err)
+		return err
 	}
 	//add token to collective token sorted set ranked by expiration date
 	currentDay, err := db.Client.Get(context.TODO(), "day").Float64()
 	if err != nil {
-		log.Panicf("failed to get the current day from redisDB: %v", err)
+		log.Printf("db: failed to get the current day from redisDB: %v\n", err)
+		return err
 	}
 	element := &redis.Z{Score: currentDay + days2Live, Member: tokenID}
 	//this is used to get the delete token array for burning tokens
 	//the collection is token ID ranked with days2live
 	err = db.Client.ZAdd(context.TODO(), "Collective", element).Err()
 	if err != nil {
-		log.Panicf("failed to add the tokenID to the collective set: %v", err)
+		log.Printf("db: failed to add the tokenID to the collective set: %v\n", err)
+		return err
 	}
+	return nil
 }

@@ -1,4 +1,4 @@
-package CAToken
+package deploy
 
 import (
 	"context"
@@ -10,17 +10,20 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
+	CAToken "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Token"
+	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
-func deploy() {
+func Deploy() {
 	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
-	client, err := ethclient.Dial(rpcurl)
+
+	eth, err := blockchain.NewdeployEtherClient(rpcurl, big.NewInt(int64(3)))
 	if err != nil {
 		log.Panic("cant connect to rpc server: ", err)
 	}
 	//test deployment account
-	privateKey, err := crypto.HexToECDSA("f43975530a55cd2f17d1973750b4b803fa651067a222de74a16f60864d0c452e")
+	ownerAddr := common.HexToAddress("0x359aa05C01338C83A5835BEbC1E689e129a06868")
+	privateKey := eth.Keys[ownerAddr].PrivateKey
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,24 +35,27 @@ func deploy() {
 
 	}
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	nonce, err := eth.Client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	gasPrice, err := client.SuggestGasPrice(context.Background())
+	gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	auth := bind.NewKeyedTransactor(privateKey)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, eth.ChainID)
+	if err != nil {
+		panic(err)
+	}
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)      // in wei
-	auth.GasLimit = uint64(4074643) // in units
+	auth.GasLimit = uint64(5574643) // in units
 	auth.GasPrice = gasPrice
 	auth.NoSend = false
-	serverAddress := common.HexToAddress("0x282e0869A1fA76B7f6d2D4B2758b60bF0284F418")
-	address, tx, instance, err := DeployCAToken(auth, client, "CAToken", "CAT", serverAddress)
+	serverAddress := common.HexToAddress("0x02a584a34b78b6645eb9728cfbf0e56433e3585b")
+	address, tx, instance, err := CAToken.DeployCAToken(auth, eth.Client, "CAToken", "CAT", serverAddress)
 	if err != nil {
 		log.Fatal(err)
 	}

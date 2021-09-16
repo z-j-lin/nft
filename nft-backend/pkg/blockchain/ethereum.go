@@ -21,6 +21,27 @@ type Ethereum struct {
 	Passcodes map[common.Address]string
 }
 
+func NewdeployEtherClient(rpcurl string, chainID *big.Int) (*Ethereum, error) {
+	ethClient, err := ethclient.Dial(rpcurl)
+	if err != nil {
+		log.Printf("error @ NewEtherClient unable to dial RPC endpoint: %v", err)
+		return nil, err
+	}
+	keys := make(map[common.Address]*keystore.Key)
+	eth := &Ethereum{
+		Client:  ethClient,
+		ChainID: chainID,
+		Keys:    keys,
+	}
+	eth.loadaccount()
+	eth.loadpasscode()
+	err = eth.unlockkey()
+	if err != nil {
+		return nil, err
+	}
+	return eth, nil
+}
+
 // used Rest API
 func NewKeylessEthClient(rpcurl, contractAddress string, chainID *big.Int) (*Ethereum, error) {
 	ethClient, err := ethclient.Dial(rpcurl)

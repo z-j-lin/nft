@@ -17,6 +17,7 @@ type monitor struct {
 	db         *redisDb.Database
 	state      objects.State
 	taskClient *tasks.TaskClient
+	Kill       chan bool
 }
 
 //makes an object to start a block monitor from
@@ -28,14 +29,16 @@ func NewBlockMon(ether *blockchain.Ethereum) *monitor {
 	if err != nil {
 		log.Fatalf("failed to connect with redisdb: %v", err)
 	}
+	kill := make(chan bool)
 	return &monitor{
 		eth:        ether,
 		db:         rdb,
 		taskClient: TC,
+		Kill:       kill,
 	}
 }
 
-func (mon *monitor) Startmon() <-chan bool {
+func (mon *monitor) Startmon() {
 	//find the initial state in db
 
 	initState, err := mon.db.GetState()
@@ -43,36 +46,40 @@ func (mon *monitor) Startmon() <-chan bool {
 	//if initial state is not in db, initiate a state starting from
 	//initial block of contract
 	if err != nil {
-		RootBlock := uint64(10910043)
+		log.Println("***starting new blockmon state***")
+		RootBlock := uint64(11048465)
 		initState = objects.State{
 			HighestFinalizedBlock: RootBlock,
 			HighestProcessedBlock: RootBlock,
+			InSync:                false,
 		}
 		//record the state
 		mon.state = initState
 	}
-	//might not need this
-	killChan := make(chan bool)
 	//starts the monitoring loop go routine
-	go mon.monitorloop(mon.state, killChan)
-	//DO i need this?
-	return killChan
+	log.Println("startomg monitor loop")
+	go mon.monitorloop(mon.state, mon.Kill)
+	<-mon.Kill
 }
 
 //this function querys for a block every 5 seconds
-func (mon *monitor) monitorloop(state objects.State, exit chan bool) error {
-	run := make(chan bool)
+func (mon *monitor) monitorloop(state objects.State, exit <-chan bool) error {
+
 	for {
+		wait := 5 * time.Second
 		if !state.InSync {
-			run <- true
+			wait = 0 * time.Second
+		} else {
+			wait = 5 * time.Second
 		}
+		log.Println("monitorloop running")
 		select {
-		case <-exit:
+		case killed := <-exit:
+			_ = killed
 			log.Println("recieved kill signal")
 			return nil
-		case <-time.After(5 * time.Second):
-			mon.getBlock(&state)
-		case <-run:
+		case ticker := <-time.After(wait * time.Second):
+			_ = ticker
 			mon.getBlock(&state)
 		}
 	}
@@ -90,8 +97,11 @@ func (mon *monitor) getBlock(state *objects.State) {
 
 	//next block to process
 	currentBlock := state.HighestProcessedBlock + 1
+	log.Println("currentBlock:", currentBlock, "delayedLatestBlock:", delayedLatestBlock)
 	if delayedLatestBlock < currentBlock+20 {
 		state.InSync = true
+	} else {
+		state.InSync = false
 	}
 	if currentBlock < delayedLatestBlock {
 		mon.taskClient.QVerificationTask(int64(currentBlock))

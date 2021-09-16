@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 
 import { Button, Card, Image } from 'semantic-ui-react'
 
-class ContentCard extends Component{
+class TokenCard extends Component{
   constructor(props) {
     super(props);
     this.state = {
@@ -13,10 +13,10 @@ class ContentCard extends Component{
 
     this.handleClick = this.handleClick.bind(this);
   }
-  buyToken(){
+  AccessToken(){
     console.log(this.state.account.toString())
     const backendurl = 'http://127.0.0.1:8081/';
-    const data = {"resourceid": this.props.contentID, "account": this.state.account.toString()}
+    const data = {"tokenid": this.props.TokenID, "account": this.state.account.toString()}
     console.log(data)
     const options = {
       method: 'POST',
@@ -29,20 +29,20 @@ class ContentCard extends Component{
       body: JSON.stringify(data)
     };
     console.log(options)
-    fetch(backendurl+'buy', options) 
+    fetch(backendurl+'request', options) 
   }
   handleClick() {
     this.setState(prevState => ({
       isToggleOn: !prevState.isToggleOn
     }));
     //send a post request to the api with contentID and account address 
-    this.buyToken()
+    this.AccessToken()
   }
   render(){
     return(
-      <Card key = {this.props.contentID}>
+      <Card key = {this.props.TokenID}>
         <Card.Content>
-          <Card.Header>{this.props.contentID}</Card.Header>
+          <Card.Header>{this.props.TokenID}</Card.Header>
           <Card.Description>
             Lit content
           </Card.Description>
@@ -50,7 +50,7 @@ class ContentCard extends Component{
         <Card.Content extra>
           <div className='ui two buttons'>
             <Button basic color='green' onClick={this.handleClick}>
-              Purchase
+              Access
             </Button>
           </div>
         </Card.Content>
@@ -60,4 +60,4 @@ class ContentCard extends Component{
   
 };
 
-export default ContentCard;
+export default TokenCard;

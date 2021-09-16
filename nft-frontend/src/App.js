@@ -7,7 +7,8 @@ import {
 } from 'react-router-dom';
 import NavBar from './NavBar';
 import HomePage from './pages/HomePage'
-import Store from './pages/store';
+import Store from './pages/Store';
+import Inventory from './pages/Inventory';
 //import detectEthereumProvier from "@metamask/detect-provider"
 import {Container} from 'semantic-ui-react';
 
@@ -23,7 +24,7 @@ class App extends Component {
   pass_web3 = (web, account) => {
     this.setState({web3: web, accounts: account})
   }
-
+  
 
   render(){
     return (
@@ -33,6 +34,7 @@ class App extends Component {
           <div className="App"> 
             <Route path="/" component={HomePage} exact/>
             <Route path="/store" exact><Store web3={this.state.web3} accounts={this.state.accounts}/></Route> 
+            <Route path="/inventory" exact><Inventory web3={this.state.web3} accounts={this.state.accounts}/></Route>
           </div>
         </Router>
       </Container>
