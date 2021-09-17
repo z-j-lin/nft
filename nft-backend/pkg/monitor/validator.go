@@ -95,25 +95,28 @@ func (v *Validator) EventHandler(Log *types.Log) error {
 	return err*/
 	case v.eth.Contract.TransferEvent:
 		log.Println("Transfer Event")
-		//if from is the 0 address
 
 		from := Log.Topics[1].Hex()
 		to := Log.Topics[2].Hex()
+		tokenID := Log.Topics[3].Big()
+		tokIDstr := tokenID.String()
+		//if from is the 0 address
 		//Mint event
 		if from == ZEROADDR {
+			resourceID, err := v.eth.Contract.GetResourceID(tokIDstr)
+			if err != nil {
+				return err
+			}
+			recipient := common.HexToAddress(to)
 			//add ownership to db
-			v.db.StoreOwnership()
+			v.db.StoreOwnership(resourceID, recipient.Hex(), tokIDstr, 10)
 		}
 		//burn event
 		if to == ZEROADDR {
+			owner := common.HexToAddress(from)
 			//remove ownership
-			v.db.DeleteOwnership()
-
+			v.db.DeleteOwnership(owner.Hex(), tokIDstr)
 		}
-		tokenID := Log.Topics[3]
-		fmt.Println("to Address", to)
-		fmt.Println("from Address", from)
-		fmt.Println("TokenID", tokenID)
 		//resourceID, err := v.eth.Contract.GetResourceID(tokenID)
 		//err = v.db.StoreOwnership(resourceID, RecipientAddr, tokenID, 10)
 		return nil

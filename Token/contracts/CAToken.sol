@@ -53,7 +53,6 @@ contract CAToken is
         _setTokenURI(_tokenIdTracker.current(), _resourceID);
         usedNonce[_nonce] = true;
         //emit information about the token
-        emit Minted(_to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
         nextNonce.increment();
     }

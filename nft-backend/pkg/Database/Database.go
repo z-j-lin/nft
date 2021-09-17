@@ -175,7 +175,7 @@ func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days
 	}
 	return nil
 }
-func (db *Database) DeleteOwnership(accountAddr, tokenID string, days2Live float64) error {
+func (db *Database) DeleteOwnership(accountAddr, tokenID string) error {
 	err := db.Client.HDel(context.TODO(), tokenID, "Resource", "Owner").Err()
 	if err != nil {
 		return err
