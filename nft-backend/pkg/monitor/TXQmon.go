@@ -7,10 +7,8 @@ import (
 	"log"
 	"math/big"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/core/types"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/hibiken/asynq"
 	redisDb "github.com/z-j-lin/nft/tree/main/nft-backend/pkg/Database"
@@ -109,7 +107,6 @@ func (txw *TxWorker) Run() error {
 		return fmt.Errorf("failed to send transaction")
 	}
 	receipt, err := txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
-	rx := make(chan *types.Receipt)
 	for receipt == nil && err == ErrTXFailedToRun {
 		receipt, err = txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
 		//if transaction failed to run on contract
@@ -117,25 +114,14 @@ func (txw *TxWorker) Run() error {
 
 			return err
 		}
-		//load the receipt into the channel
-		rx <- receipt
-		select {
-		case Receipt := <-rx:
-			if Receipt.Status == 1 {
-				return nil
-			} else {
-				return fmt.Errorf("transaction failed")
-			}
-		case <-time.After(10 * time.Minute):
-			return fmt.Errorf("timedout failed to send transaction")
+		if receipt.Status == 1 {
+			return nil
+		} else {
+			return fmt.Errorf("transaction failed")
 		}
+
 	}
-	if err != nil {
-		log.Println(err)
-		return err
-	} else {
-		return nil
-	}
+	return fmt.Errorf("transaction failed")
 }
 
 // given the private key returns a keyed transactor

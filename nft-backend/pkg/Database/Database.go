@@ -162,17 +162,26 @@ func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days
 		return err
 	}
 	//add token to collective token sorted set ranked by expiration date
-	currentDay, err := db.Client.Get(context.TODO(), "day").Float64()
-	if err != nil {
-		log.Printf("db: failed to get the current day from redisDB: %v\n", err)
-		return err
-	}
-	element := &redis.Z{Score: currentDay + days2Live, Member: tokenID}
+	days := int(days2Live)
+	lifetime := time.Now().AddDate(0, 0, days)
+
+	element := &redis.Z{Score: float64(lifetime.Unix()), Member: tokenID}
 	//this is used to get the delete token array for burning tokens
 	//the collection is token ID ranked with days2live
 	err = db.Client.ZAdd(context.TODO(), "Collective", element).Err()
 	if err != nil {
 		log.Printf("db: failed to add the tokenID to the collective set: %v\n", err)
+		return err
+	}
+	return nil
+}
+func (db *Database) DeleteOwnership(accountAddr, tokenID string, days2Live float64) error {
+	err := db.Client.HDel(context.TODO(), tokenID, "Resource", "Owner").Err()
+	if err != nil {
+		return err
+	}
+	err = db.Client.SRem(context.TODO(), accountAddr, tokenID).Err()
+	if err != nil {
 		return err
 	}
 	return nil

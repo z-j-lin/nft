@@ -19,7 +19,7 @@ type Contract struct {
 	eth             *Ethereum
 	Instance        *CAToken.CAToken
 	MintEvent       string
-	TransferEvent   string
+	TransferEvent   common.Hash
 }
 
 func NewContract(eth *Ethereum, ConAddr string) *Contract {
@@ -29,9 +29,9 @@ func NewContract(eth *Ethereum, ConAddr string) *Contract {
 		log.Fatalf("failed to initiate contract instance: %v", err)
 	}
 	LogMintedSig := []byte("Minted(address,uint256)")
-	LogTokenTransferSig := []byte("Transfer(address, address, uint256)")
+	LogTokenTransferSig := []byte("Transfer(address,address,uint256)")
 	LogMintedSigHash := crypto.Keccak256Hash(LogMintedSig).Hex()
-	LogTokenTransferSigHash := crypto.Keccak256Hash(LogTokenTransferSig).Hex()
+	LogTokenTransferSigHash := crypto.Keccak256Hash(LogTokenTransferSig)
 	con := &Contract{
 		MintEvent:       LogMintedSigHash,
 		TransferEvent:   LogTokenTransferSigHash,

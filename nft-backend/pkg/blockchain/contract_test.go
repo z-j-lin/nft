@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -12,6 +13,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
+/*
 func TestDeleteTokens(t *testing.T) {
 	keybyte := common.Hex2Bytes("fabb40d41c3044e3d1200ebb726192d5dde3e349565e27bb6f900556cfacbbe5")
 	key, err := ethcrypto.ToECDSA(keybyte)
@@ -72,10 +74,11 @@ func TestDeleteTokens(t *testing.T) {
 	}
 	t.Logf("%x", tx1.Hash())
 }
-
+*/
 func TestSetServerRole(t *testing.T) {
+	var ErrTXFailedToRun error = errors.New("not found")
 	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
-	chainID := big.NewInt(int64(5777))
+	chainID := big.NewInt(int64(3))
 	contractAddr := "0xb410756d52b1250aB9bE358437Ab41a4D7636Af8"
 	eth, err := NewEtherClient(rpcurl, contractAddr, chainID)
 	if err != nil {
@@ -83,6 +86,7 @@ func TestSetServerRole(t *testing.T) {
 	}
 	ownerAcc := common.HexToAddress("0x359aa05C01338C83A5835BEbC1E689e129a06868")
 	key := eth.Keys[ownerAcc]
+
 	ownerpk := key.PrivateKey
 	senderAddr := ethcrypto.PubkeyToAddress(ownerpk.PublicKey)
 	auth, err := bind.NewKeyedTransactorWithChainID(ownerpk, chainID)
@@ -105,10 +109,109 @@ func TestSetServerRole(t *testing.T) {
 			t.Fatal(err)
 		}
 		auth.Nonce = big.NewInt(int64(nonce))
-		con.SetServerRole(auth, account.Address)
+
+		tx, err := con.SetServerRole(auth, account.Address)
+		receipt, err := eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+		for receipt == nil && err == ErrTXFailedToRun {
+			receipt, err = eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+			//if transaction failed to run on contract
+			if err != nil && err != ErrTXFailedToRun {
+				t.Error(err)
+			}
+		}
 	}
 }
 
+func TestMintToken(t *testing.T) {
+	var ErrTXFailedToRun error = errors.New("not found")
+	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
+	chainID := big.NewInt(int64(3))
+	contractAddr := "0xb410756d52b1250aB9bE358437Ab41a4D7636Af8"
+	eth, err := NewEtherClient(rpcurl, contractAddr, chainID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerAcc := common.HexToAddress("0x359aa05C01338C83A5835BEbC1E689e129a06868")
+	key := eth.Keys[ownerAcc]
+
+	ownerpk := key.PrivateKey
+	senderAddr := ethcrypto.PubkeyToAddress(ownerpk.PublicKey)
+	auth, err := bind.NewKeyedTransactorWithChainID(ownerpk, chainID)
+	if err != nil {
+		log.Panic(err)
+	}
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(300000)
+	con := eth.Contract
+	gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.GasPrice = gasPrice
+	nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.Nonce = big.NewInt(int64(nonce))
+	nextNonce, err := eth.Contract.GetInitNonce()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := con.MintToken(auth, senderAddr, "thing", nextNonce)
+	receipt, err := eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+	for receipt == nil && err == ErrTXFailedToRun {
+		receipt, err = eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+		//if transaction failed to run on contract
+		if err != nil && err != ErrTXFailedToRun {
+			t.Error(err)
+		}
+	}
+}
+
+func TestDeleteToken(t *testing.T) {
+	var ErrTXFailedToRun error = errors.New("not found")
+	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
+	chainID := big.NewInt(int64(3))
+	contractAddr := "0xb410756d52b1250aB9bE358437Ab41a4D7636Af8"
+	eth, err := NewEtherClient(rpcurl, contractAddr, chainID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerAcc := common.HexToAddress("0x359aa05C01338C83A5835BEbC1E689e129a06868")
+	key := eth.Keys[ownerAcc]
+
+	ownerpk := key.PrivateKey
+	senderAddr := ethcrypto.PubkeyToAddress(ownerpk.PublicKey)
+	auth, err := bind.NewKeyedTransactorWithChainID(ownerpk, chainID)
+	if err != nil {
+		log.Panic(err)
+	}
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(300000)
+	con := eth.Contract
+	gasPrice, err := eth.Client.SuggestGasPrice(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.GasPrice = gasPrice
+	nonce, err := eth.Client.PendingNonceAt(context.Background(), senderAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.Nonce = big.NewInt(int64(nonce))
+	var tokens []*big.Int
+	tokens = append(tokens, big.NewInt(int64(0)))
+	tokens = append(tokens, big.NewInt(int64(1)))
+	tx, err := con.DeleteTokens(auth, tokens)
+	receipt, err := eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+	for receipt == nil && err == ErrTXFailedToRun {
+		receipt, err = eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
+		//if transaction failed to run on contract
+		if err != nil && err != ErrTXFailedToRun {
+			t.Error(err)
+		}
+	}
+}
 func TestGetInitNonce(t *testing.T) {
 	rpcurl := "https://ropsten.infura.io/v3/27c2937f16d14d33a4c8315e22109f09"
 	chainID := big.NewInt(int64(5777))
