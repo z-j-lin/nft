@@ -134,22 +134,50 @@ func (db *Database) GetStore() ([]string, error) {
 	return store, nil
 }
 
+/*ran in a scheduled function once daily to get expired tokens*/
+func (db *Database) GetExpiredTokens(accountAddr, days2Live float64) []string {
+	time1 := time.Now().AddDate(0, 0, -1).Unix()
+	time2 := time.Now().Unix()
+	opts := &redis.ZRangeBy{
+		Min: fmt.Sprint(time1),
+		Max: fmt.Sprint(time2),
+	}
+	val := db.Client.ZRangeByScore(context.Background(), "Collective", opts).Val()
+	return val
+}
+
+//deletes tokens on the collective list
+func (db *Database) DeleteExpiredTokens(accountAddr, days2Live float64) error {
+	time1 := time.Now().AddDate(0, 0, -1).Unix()
+	time2 := time.Now().Unix()
+	err := db.Client.ZRemRangeByScore(context.Background(), "Collective", fmt.Sprint(time1), fmt.Sprint(time2)).Err()
+	return err
+}
+
+//returns the owners list of owned tokens from the db
+func (db *Database) GetInventory(accountAddr string) ([]string, error) {
+	inventory, err := db.Client.SMembers(context.TODO(), accountAddr).Result()
+	if err != nil {
+		return inventory, err
+	}
+	return inventory, nil
+}
+
 /*ownership store
-each address gets a hmap
-in the hmap each field is a tokenID refrencing resourceID
+create a hashmap with the tokenID as the key with field account address
+referencing the owner account
+can be used later to associate resourceID with tokenID
 */
-func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days2Live float64) error {
+func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live float64) error {
 	//each token has a hash map with the tokenID as the key
 	//holds resource ID owners address
 	//the days2live will be stored sorted set
 	TokenHashData := make(map[string]string)
-	TokenHashData["Resource"] = resourceID
 	TokenHashData["Owner"] = accountAddr
 	//create a tokenID map with tokenID as key, with fields resourceID, AccountOwners
 	//used for serving content ownership array to the client provided the tokenID array
 	//this is also used to verify access rights
 	err := db.Client.HSet(context.TODO(), tokenID, TokenHashData).Err()
-
 	if err != nil {
 		log.Printf("db: failed to create token hash: %v\n", err)
 		return err
@@ -176,13 +204,15 @@ func (db *Database) StoreOwnership(resourceID, accountAddr, tokenID string, days
 	return nil
 }
 func (db *Database) DeleteOwnership(accountAddr, tokenID string) error {
-	err := db.Client.HDel(context.TODO(), tokenID, "Resource", "Owner").Err()
+	//removes the the tokenID from the owners set on db
+	err := db.Client.SRem(context.TODO(), accountAddr, tokenID).Err()
 	if err != nil {
 		return err
 	}
-	err = db.Client.SRem(context.TODO(), accountAddr, tokenID).Err()
+	//removes the hashmap asscociated with the tokeID
+	err = db.Client.HDel(context.TODO(), tokenID, "Resource", "Owner").Err()
 	if err != nil {
 		return err
 	}
-	return nil
+	return err
 }
