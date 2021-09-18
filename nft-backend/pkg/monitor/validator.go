@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/big"
 
@@ -13,6 +12,8 @@ import (
 )
 
 const ZEROADDR string = "0x0000000000000000000000000000000000000000"
+
+//const ZeroTokenID string = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 type Validator struct {
 	eth      *blockchain.Ethereum
@@ -75,53 +76,38 @@ func (v *Validator) validateBlock() error {
 	return nil
 }
 
+// finds the blocks with a transfer event from the token Contract
 func (v *Validator) EventHandler(Log *types.Log) error {
+	var err error = nil
 	//i only care about transfer events right now
-	fmt.Println(Log.Topics[0].Hex())
 	switch Log.Topics[0] {
-
-	/*case v.eth.Contract.MintEvent:
-	//extract the token recipient address
-	RecipientAddr := Log.Topics[1].Hex()
-	tokenID := Log.Topics[2].String()
-	//get the resourceID from the contract
-
-	if err != nil {
-		log.Println("validator: error occured getting resourceID")
-		return err
-	}
-	//add recipient Address and token id to registry
-
-	return err*/
 	case v.eth.Contract.TransferEvent:
 		log.Println("Transfer Event")
-
 		from := Log.Topics[1].Hex()
 		to := Log.Topics[2].Hex()
-		tokenID := Log.Topics[3].Big()
-		tokIDstr := tokenID.String()
+		//take the zeros out of the hash and convert to string
+		tokenID := Log.Topics[3].Big().String()
+		//trim the leading zero from the left side of the address string
+		to = common.HexToAddress(to).Hex()
+		from = common.HexToAddress(from).Hex()
 		//if from is the 0 address
 		//Mint event
 		if from == ZEROADDR {
-			resourceID, err := v.eth.Contract.GetResourceID(tokIDstr)
-			if err != nil {
-				return err
-			}
-			recipient := common.HexToAddress(to)
+			log.Println("Mint")
 			//add ownership to db
-			v.db.StoreOwnership(resourceID, recipient.Hex(), tokIDstr, 10)
-		}
-		//burn event
-		if to == ZEROADDR {
-			owner := common.HexToAddress(from)
-			//remove ownership
-			v.db.DeleteOwnership(owner.Hex(), tokIDstr)
-		}
-		//resourceID, err := v.eth.Contract.GetResourceID(tokenID)
-		//err = v.db.StoreOwnership(resourceID, RecipientAddr, tokenID, 10)
-		return nil
-	default:
-		return nil
-	}
+			err = v.db.StoreOwnership(to, tokenID, 10)
 
+		} else if to == ZEROADDR { //burn event
+			log.Println("Burn")
+			//remove ownership
+			err = v.db.DeleteOwnership(from, tokenID)
+
+		} else { //transfering token
+			log.Println("Transfering Ownership")
+			err = v.db.TransferOwnership(from, to, tokenID)
+		}
+	default:
+		err = nil
+	}
+	return err
 }

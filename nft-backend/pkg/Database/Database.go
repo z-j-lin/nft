@@ -63,11 +63,10 @@ func (db *Database) RemoveToken(tokenID string) {
 /////////////////////////////////////////////////////////////////////////////////
 
 //this function can add or just update blockmon state
-func (db *Database) UpdateState(state *objects.State) error {
+func (db *Database) UpdateProcessedState(blocknum int64) error {
 	mapp := make(map[string]string)
 	//Hset only takes strings
-	mapp["HighestFinalizedBlock"] = fmt.Sprint(state.HighestFinalizedBlock)
-	mapp["HighestProcessedBlock"] = fmt.Sprint(state.HighestProcessedBlock)
+	mapp["HighestProcessedBlock"] = fmt.Sprint(blocknum)
 	_, err := db.Client.HSet(context.TODO(), "State", mapp).Result()
 	if err != nil {
 		log.Println(err, "@DBUpdateState")
@@ -76,30 +75,24 @@ func (db *Database) UpdateState(state *objects.State) error {
 	return err
 }
 
-func (db *Database) GetState() (objects.State, error) {
+func (db *Database) GetState() (*objects.State, error) {
 	//fetch the state from redisDB
 	StateSlice, err := db.Client.HMGet(context.TODO(), "State", "HighestFinalizedBlock", "HighestProcessedBlock").Result()
 	//if state doesnt exist return values will be all nil for state and err
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get state")
 	}
 	//if the state variables are not empty on the redis server
 	var State objects.State
 	if StateSlice[1] != nil {
-		State.HighestProcessedBlock, err = strconv.ParseUint(StateSlice[1].(string), 10, 64)
+		State.HighestProcessedBlock, err = strconv.ParseInt(StateSlice[1].(string), 10, 64)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		if StateSlice[0] != nil {
-			State.HighestFinalizedBlock, err = strconv.ParseUint(StateSlice[0].(string), 10, 64)
-			if err != nil {
-				panic(err)
-			}
-		}
-		return State, nil
+		return &State, nil
 	} else {
 		log.Println("State does not exist on disk")
-		return State, fmt.Errorf("state does not exist on disk")
+		return nil, fmt.Errorf("state does not exist on disk")
 	}
 }
 
@@ -168,10 +161,10 @@ create a hashmap with the tokenID as the key with field account address
 referencing the owner account
 can be used later to associate resourceID with tokenID
 */
-func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live float64) error {
+func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live int) error {
 	//each token has a hash map with the tokenID as the key
 	//holds resource ID owners address
-	//the days2live will be stored sorted set
+	//the days2live will be stored in sorted set
 	TokenHashData := make(map[string]string)
 	TokenHashData["Owner"] = accountAddr
 	//create a tokenID map with tokenID as key, with fields resourceID, AccountOwners
@@ -190,7 +183,7 @@ func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live float6
 		return err
 	}
 	//add token to collective token sorted set ranked by expiration date
-	days := int(days2Live)
+	days := days2Live
 	lifetime := time.Now().AddDate(0, 0, days)
 
 	element := &redis.Z{Score: float64(lifetime.Unix()), Member: tokenID}
@@ -215,4 +208,25 @@ func (db *Database) DeleteOwnership(accountAddr, tokenID string) error {
 		return err
 	}
 	return err
+}
+
+//removes tokenID in from set on dB and adds tokenID in to set
+func (db *Database) TransferOwnership(from, to, tokenID string) error {
+	TokenHashData := make(map[string]string)
+	TokenHashData["Owner"] = to
+	//removes the the tokenID from the owners set on db
+	err := db.Client.SRem(context.TODO(), from, tokenID).Err()
+	if err != nil {
+		return err
+	}
+	err = db.Client.SAdd(context.TODO(), to, tokenID).Err()
+	if err != nil {
+		return err
+	}
+	//removes the hashmap asscociated with the tokeID
+	err = db.Client.HSet(context.TODO(), tokenID, TokenHashData).Err()
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -1,7 +1,6 @@
 package objects
 
 type State struct {
-	HighestFinalizedBlock uint64
-	HighestProcessedBlock uint64
+	HighestProcessedBlock int64
 	InSync                bool
 }

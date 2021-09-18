@@ -15,7 +15,7 @@ import (
 type monitor struct {
 	eth        *blockchain.Ethereum
 	db         *redisDb.Database
-	state      objects.State
+	state      *objects.State
 	taskClient *tasks.TaskClient
 	Kill       chan bool
 }
@@ -40,76 +40,76 @@ func NewBlockMon(ether *blockchain.Ethereum) *monitor {
 
 func (mon *monitor) Startmon() {
 	//find the initial state in db
-
 	initState, err := mon.db.GetState()
-	mon.state = initState
 	//if initial state is not in db, initiate a state starting from
 	//initial block of contract
-	if err != nil {
+	if err != nil || initState == nil {
 		log.Println("***starting new blockmon state***")
-		RootBlock := uint64(11048465)
-		initState = objects.State{
-			HighestFinalizedBlock: RootBlock,
+		RootBlock := int64(11048465)
+		initState = &objects.State{
 			HighestProcessedBlock: RootBlock,
 			InSync:                false,
 		}
 		//record the state
 		mon.state = initState
+	} else {
+		mon.state = initState
 	}
 	//starts the monitoring loop go routine
-	log.Println("startomg monitor loop")
-	go mon.monitorloop(mon.state, mon.Kill)
+	go mon.monitorloop()
 	<-mon.Kill
 }
 
 //this function querys for a block every 5 seconds
-func (mon *monitor) monitorloop(state objects.State, exit <-chan bool) error {
-
+func (mon *monitor) monitorloop() error {
+	wait := 5 * time.Second
 	for {
-		wait := 5 * time.Second
-		if !state.InSync {
+		newState, err := mon.db.GetState()
+		if err == nil {
+			mon.state = newState
+		}
+		if !mon.state.InSync {
 			wait = 0 * time.Second
 		} else {
 			wait = 5 * time.Second
 		}
-		log.Println("monitorloop running")
 		select {
-		case killed := <-exit:
+		case killed := <-mon.Kill:
 			_ = killed
 			log.Println("recieved kill signal")
 			return nil
 		case ticker := <-time.After(wait * time.Second):
 			_ = ticker
-			mon.getBlock(&state)
+			mon.getBlock()
 		}
 	}
 }
-func (mon *monitor) getBlock(state *objects.State) {
+
+func (mon *monitor) getBlock() {
 	//get latest block
 	header, err := mon.eth.Client.HeaderByNumber(context.TODO(), nil)
 	if err != nil {
 		log.Fatalf("at monitorloop %v", err)
 	}
 	//Most recent block added to the block chain
-	latestBlock := header.Number.Uint64()
+	latestBlock := header.Number.Int64()
 	//40 blocks below the most recent block
-	delayedLatestBlock := latestBlock - uint64(40)
-
+	delayedLatestBlock := latestBlock - int64(40)
 	//next block to process
-	currentBlock := state.HighestProcessedBlock + 1
+	currentBlock := mon.state.HighestProcessedBlock + 1
 	log.Println("currentBlock:", currentBlock, "delayedLatestBlock:", delayedLatestBlock)
 	if delayedLatestBlock < currentBlock+20 {
-		state.InSync = true
+		mon.state.InSync = true
 	} else {
-		state.InSync = false
+		mon.state.InSync = false
 	}
 	if currentBlock < delayedLatestBlock {
 		mon.taskClient.QVerificationTask(int64(currentBlock))
-		state.HighestProcessedBlock = currentBlock
+		mon.state.HighestProcessedBlock = currentBlock
 		//update state on redis
-		err = mon.db.UpdateState(state)
+		err = mon.db.UpdateProcessedState(int64(currentBlock))
 		if err != nil {
-			log.Fatal("unable to update state", err)
+			log.Println("unable to update state", err)
 		}
 	}
 }
