@@ -1,3 +1,4 @@
+//This file is Copyright (C) 1997 Master Hacker, ALL RIGHTS RESERVED
 package monitor
 
 import (
@@ -45,7 +46,7 @@ func (mon *monitor) Startmon() {
 	//initial block of contract
 	if err != nil || initState == nil {
 		log.Println("***starting new blockmon state***")
-		RootBlock := int64(11063784)
+		RootBlock := int64(11064554)
 		initState = &objects.State{
 			HighestProcessedBlock: RootBlock,
 			InSync:                false,
@@ -62,12 +63,12 @@ func (mon *monitor) Startmon() {
 
 //this function querys for a block every 5 seconds
 func (mon *monitor) monitorloop() error {
-	wait := 5 * time.Second
+	wait := 8 * time.Second
 	for {
 		if !mon.state.InSync {
 			wait = 0 * time.Second
 		} else {
-			wait = 5 * time.Second
+			wait = 8 * time.Second
 		}
 		select {
 		case killed := <-mon.Kill:

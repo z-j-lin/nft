@@ -1,14 +1,17 @@
+//This file is Copyright (C) 1997 Master Hacker, ALL RIGHTS RESERVED 
 import React, {Component} from 'react';
 
-import { Button, Card, Image } from 'semantic-ui-react'
+import { Button, Card, Image, Popup } from 'semantic-ui-react'
 
 class TokenCard extends Component{
   constructor(props) {
     super(props);
     this.state = {
+      open: false,
       account: props.accounts,
       isToggleOn: true,
-      web3: props.web3
+      web3: props.web3,
+      url: ""
     };
 
     this.handleClick = this.handleClick.bind(this);
@@ -36,18 +39,28 @@ class TokenCard extends Component{
       }
       return response.json()
     })
-    .then(image => {
-      console.log(image)
+    .then(jsonresp => {
+      this.setState({url: jsonresp.url})
     }).catch(error => {console.log(error)})
   }
   handleClick() {
+
+    if (this.state.open === false){
+      this.setState({open: true})
+    }else{
+      this.setState({open: false})
+    }
     this.setState(prevState => ({
       isToggleOn: !prevState.isToggleOn
     }));
     //send a post request to the api with contentID and account address 
-    this.AccessToken()
+    if (this.state.url === ""){
+      this.AccessToken()
+    }
   }
+  
   render(){
+   
     return(
       <Card key = {this.props.TokenID}>
         <Card.Content>
@@ -58,9 +71,15 @@ class TokenCard extends Component{
         </Card.Content>
         <Card.Content extra>
           <div className='ui two buttons'>
-            <Button basic color='green' onClick={this.handleClick}>
-              Access
-            </Button>
+          <Popup
+          on='hover'
+          //open={this.state.open}
+          trigger={<Button content='A trigger' basic color='green' onClick={this.handleClick}/>}
+        >
+          <Popup.Content>
+            <Image src={this.state.url}/>
+          </Popup.Content>
+        </Popup>
           </div>
         </Card.Content>
       </Card>

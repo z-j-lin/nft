@@ -1,3 +1,4 @@
+//This file is Copyright (C) 1997 Master Hacker, ALL RIGHTS RESERVED
 import React, {Component} from 'react';
 
 import { Button, Card, Image } from 'semantic-ui-react'

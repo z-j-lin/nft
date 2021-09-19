@@ -226,3 +226,5 @@ func TestGetInitNonce(t *testing.T) {
 	}
 	fmt.Println(nextNonce)
 }
+
+//This file is Copyright (C) 1997 Master Hacker, ALL RIGHTS RESERVED

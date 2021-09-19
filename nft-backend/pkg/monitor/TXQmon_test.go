@@ -23,7 +23,8 @@ func TestNewQmon(t *testing.T) {
 	}
 	//load tasks
 	redisAddr := "127.0.0.1:6379"
-	TC := tasks.NewTaskClient(redisAddr)
+	TC := tasks.NewTaskClient(eth, redisAddr)
+	_ = TC
 	var tests = []struct {
 		address   string
 		contentID string
@@ -36,7 +37,8 @@ func TestNewQmon(t *testing.T) {
 		{"0xEd5E90a45476706A70B9e87Da147988Fdd0e9F6f", "thing6"},
 	}
 	for _, test := range tests {
-		err := TC.QMintTask(test.address, test.contentID)
+		//err := TC.QMintTask(test.address, test.contentID)
+		_ = test
 		if err != nil {
 			t.Error(err)
 		}

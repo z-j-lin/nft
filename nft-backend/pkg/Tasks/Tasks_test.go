@@ -1,10 +1,13 @@
 package Tasks
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewAsyncredisClient(t *testing.T) {
-	redisAddr := "127.0.0.1:6379"
-	RC := NewAsyncredisClient(redisAddr)
+	//redisAddr := "127.0.0.1:6379"
+	/*eth := blockchain.NewEtherClient()
+	RC := NewTaskClient(eth, redisAddr)
 	var tests = []struct {
 		address   string
 		contentID string
@@ -21,5 +24,5 @@ func TestNewAsyncredisClient(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-	}
+	}*/
 }

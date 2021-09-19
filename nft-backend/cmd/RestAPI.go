@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -283,6 +282,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+type Resource struct {
+	Url string `json:"url"`
+}
+
 func fetchResource(w http.ResponseWriter, r *http.Request) {
 	PostHeaders(w, r)
 	log.Println("reached the access tokens endpoint")
@@ -312,20 +316,26 @@ func fetchResource(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
-
-			filebyte, err := ioutil.ReadFile(ResourceID + ".jpeg")
+			response := Resource{Url: "http://localhost:8081/resources/" + ResourceID + ".jpeg"}
+			/*filebyte, err := ioutil.ReadFile(ResourceID + ".jpeg")
 			if err != nil {
 				log.Println("Fetresource:", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("500 - Something bad happened!"))
+			} else {*/
+			//send back array of tokens owned by client
+			respbyte, err := json.Marshal(response)
+			if err != nil {
+				log.Println("Fetch resource:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Something bad happened!"))
 			} else {
-				//send back array of tokens owned by client
-				w.WriteHeader(http.StatusOK)
 				w.Header().Set("Content-Type", "aplication/json")
-				w.Write([]byte(ResourceID))
-				w.Header().Set("Content-Type", "aplication/octet-stream")
-				w.Write(filebyte)
+				w.WriteHeader(http.StatusOK)
+				w.Write(respbyte)
 			}
+
+			//}
 		} else {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
@@ -360,8 +370,9 @@ func main() {
 	router.HandleFunc("/getstore", ContentStore).Methods("GET")
 
 	router.HandleFunc("/request", fetchResource).Methods("POST", "OPTIONS")
+	router.PathPrefix("/resources/").Handler(http.StripPrefix("/resources", http.FileServer(http.Dir("./content"))))
 	http.Handle("/", router)
-
+	log.Println("dir:", dir)
 	server := &http.Server{
 		Handler:      router,
 		Addr:         "127.0.0.1:8081",

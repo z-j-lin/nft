@@ -72,6 +72,9 @@ func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) e
 func (hdl *Handler) HandleBurnTokenTask(CTX context.Context, t *asynq.Task) error {
 	//gets the expired tokens from the db
 	tokens, err := hdl.db.GetExpiredTokens()
+	if err != nil {
+		return err
+	}
 	//container for tokenIDs
 	var Tokens []*big.Int
 	//convert string array to big int array
@@ -96,6 +99,11 @@ func (hdl *Handler) HandleBurnTokenTask(CTX context.Context, t *asynq.Task) erro
 		//delete tokens from the db record after it gets deleted
 		if err == nil {
 			err = hdl.db.DeleteExpiredTokens()
+			if err != nil {
+				log.Println("burn task handler", err)
+				//set task failed for retry
+				return err
+			}
 		}
 
 	}

@@ -1,3 +1,4 @@
+//This file is Copyright (C) 1997 Master Hacker, ALL RIGHTS RESERVED
 package monitor
 
 import (
