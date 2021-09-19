@@ -61,9 +61,9 @@ func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 }
 
 //task to be ran once 24 hours, should be used on a scheduler to periodicaly delete tokens
-func (tc *TaskClient) QBurnTask(resourceIDs []*big.Int) error {
+func (tc *TaskClient) QBurnTask() error {
 	//create the task
-	task, err := tc.newBurnTokensTask(resourceIDs)
+	task, err := tc.newBurnTokensTask()
 	if err != nil {
 		log.Println("failed to create Mint task", err)
 		return err
@@ -73,9 +73,11 @@ func (tc *TaskClient) QBurnTask(resourceIDs []*big.Int) error {
 	or max retry count is hit*/
 	info, err := tc.client.Enqueue(
 		task,
-		asynq.Queue("default"),
+		asynq.Queue("burn"),
 		asynq.Timeout(10*time.Minute),
 		asynq.MaxRetry(3),
+		//run this every 24 hour
+		asynq.ProcessAt(time.Now().Add(time.Minute)),
 	)
 	if err != nil {
 		log.Println("failed to queue burn task")
@@ -90,11 +92,11 @@ func (tc *TaskClient) QVerificationTask(blocknum int64) error {
 	//create the task
 	task, err := tc.newBlockVerificationTask(blocknum)
 	if err != nil {
-		log.Println("failed to create Mint task", err)
+		log.Println("failed to create verification task", err)
 		return err
 	}
 	/* enques the mint task,
-	retries every 10 min until succeeds
+	retries until succeeds
 	or max retry count is hit*/
 	info, err := tc.client.Enqueue(
 		task,
@@ -120,14 +122,9 @@ func (tc *TaskClient) newMintTokenTask(AccAddr, resourceID string) (*asynq.Task,
 }
 
 //might be able to make this a repeatable task with the asynq scheduler
-func (tc *TaskClient) newBurnTokensTask(tokenIDs []*big.Int) (*asynq.Task, error) {
-	Data, err := json.Marshal(BurnToken{TokenIDs: tokenIDs})
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	log.Printf(" [*] Successfully created a Burn task")
-	return asynq.NewTask(TypeBurnTokens, Data), nil
+func (tc *TaskClient) newBurnTokensTask() (*asynq.Task, error) {
+	log.Println(" [*] Successfully created a Burn task")
+	return asynq.NewTask(TypeBurnTokens, nil), nil
 }
 
 //validation task

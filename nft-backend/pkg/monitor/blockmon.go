@@ -45,7 +45,7 @@ func (mon *monitor) Startmon() {
 	//initial block of contract
 	if err != nil || initState == nil {
 		log.Println("***starting new blockmon state***")
-		RootBlock := int64(11048465)
+		RootBlock := int64(11063008)
 		initState = &objects.State{
 			HighestProcessedBlock: RootBlock,
 			InSync:                false,
@@ -62,16 +62,12 @@ func (mon *monitor) Startmon() {
 
 //this function querys for a block every 5 seconds
 func (mon *monitor) monitorloop() error {
-	wait := 5 * time.Second
+	wait := 2 * time.Minute
 	for {
-		newState, err := mon.db.GetState()
-		if err == nil {
-			mon.state = newState
-		}
 		if !mon.state.InSync {
 			wait = 0 * time.Second
 		} else {
-			wait = 5 * time.Second
+			wait = 2 * time.Minute
 		}
 		select {
 		case killed := <-mon.Kill:
@@ -97,8 +93,7 @@ func (mon *monitor) getBlock() {
 	delayedLatestBlock := latestBlock - int64(40)
 	//next block to process
 	currentBlock := mon.state.HighestProcessedBlock + 1
-	log.Println("currentBlock:", currentBlock, "delayedLatestBlock:", delayedLatestBlock)
-	if delayedLatestBlock < currentBlock+20 {
+	if delayedLatestBlock < currentBlock+2 {
 		mon.state.InSync = true
 	} else {
 		mon.state.InSync = false

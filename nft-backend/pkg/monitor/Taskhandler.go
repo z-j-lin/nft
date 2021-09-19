@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -22,17 +23,20 @@ type Handler struct {
 	eth          *blockchain.Ethereum
 	db           *redisDb.Database
 	nm           *NonceMan
+	TC           *tasks.TaskClient
 }
 
 //runs as a go routine within the server
 //creates a new minttx and txworker object
 func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database) *Handler {
+	tc := tasks.NewTaskClient(db.Client.Options().Addr)
 	nm := NewNonceManager(eth)
 	hdl := &Handler{
 		PrivkManager: PM,
 		eth:          eth,
 		db:           db,
 		nm:           nm,
+		TC:           tc,
 	}
 	return hdl
 }
@@ -66,16 +70,39 @@ func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) e
 	err = NewValidator(hdl.eth, big.NewInt(Data.Blocknum))
 	return err
 }
+
 func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
-	var Data tasks.BurnToken
-	err := json.Unmarshal(t.Payload(), &Data)
-	if err != nil {
-		log.Println("failed to unmarshal task payload in burnToken task Handler")
-		return err
+	//gets the expired tokens from the db
+	tokens, err := hdl.db.GetExpiredTokens()
+	//container for tokenIDs
+	var Tokens []*big.Int
+	//convert string array to big int array
+	//theres got to be a better way to do this
+	for _, t := range tokens {
+		//convert each string into a integeger
+		n := new(big.Int)
+		n, ok := n.SetString(t, 10)
+		if !ok {
+			return fmt.Errorf("failed to set token string to bigint")
+		}
+		Tokens = append(Tokens, n)
 	}
-	send := blockchain.NewDelTokens(hdl.eth, Data.TokenIDs)
-	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
-	err = NewTX.Run()
+	//run the tx if there are tokens in the array
+	if len(Tokens) != 0 {
+		//make the transaction object
+		send := blockchain.NewDelTokens(hdl.eth, Tokens)
+		//spawn a tx worker with the transaction object
+		NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
+		//run the transaction
+		err := NewTX.Run()
+		//delete tokens from the db record after it gets deleted
+		if err == nil {
+			err = hdl.db.DeleteExpiredTokens()
+		}
+
+	}
+	//make another task to run later
+	err = hdl.TC.QBurnTask()
 	return err
 }
 

@@ -30,16 +30,17 @@ class Inventory extends Component {
       //credentials: 'include',
       body: JSON.stringify(data)
     };
-    fetch(backendurl+"load")
+    fetch(backendurl+"load", options)
       .then(response => response.json())
       .then(data => {
         console.log(data)
         this.setState({
           content: data
         })
-      })  
+      }).catch(error => console.log(error))  
   };
   renderItems(){
+    //returns the content card of each token 
     return(
       this.state.content.map((content, index) => {
         console.log(this.state.accounts)

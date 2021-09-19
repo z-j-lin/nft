@@ -29,7 +29,16 @@ class TokenCard extends Component{
       body: JSON.stringify(data)
     };
     console.log(options)
-    fetch(backendurl+'request', options) 
+    fetch(backendurl+'request', options)
+    .then(response => {
+      if(!response.ok){
+        throw Error("Error fetching resource")
+      }
+      return response.json()
+    })
+    .then(image => {
+      console.log(image)
+    }).catch(error => {console.log(error)})
   }
   handleClick() {
     this.setState(prevState => ({

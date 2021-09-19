@@ -83,18 +83,24 @@ func (c *Contract) SetServerRole(Auth *bind.TransactOpts, serverAddress common.A
 }
 
 //check if owner owns token
-func (c *Contract) IsOwner(address common.Address, tokenID int64) (bool, error) {
+func (c *Contract) IsOwner(address string, tokenID string) (bool, error) {
 	//TODO: use highest delayed block by 20 blocks
 	opts := &bind.CallOpts{
 		Pending: false,
 		Context: context.TODO(),
 	}
-	TID := big.NewInt(tokenID)
+
+	TokenID, err := strconv.ParseInt(tokenID, 10, 64)
+	if err != nil {
+		return false, err
+	}
+	TID := big.NewInt(TokenID)
 	ownerAddr, err := c.Instance.OwnerOf(opts, TID)
 	if err != nil {
 		return false, err
 	}
-	if ownerAddr == address {
+	account := common.HexToAddress(address)
+	if ownerAddr == account {
 		return true, nil
 	} else {
 		return false, fmt.Errorf("not owner")
@@ -107,12 +113,12 @@ func (c *Contract) GetResourceID(tokenID string) (string, error) {
 		Pending: false,
 		Context: context.TODO(),
 	}
-	tID, err := strconv.Atoi(tokenID)
+	TokenID, err := strconv.ParseInt(tokenID, 10, 64)
 	if err != nil {
 		return "", err
 	}
-	tokenIDint := big.NewInt(int64(tID))
-	TokenURI, err := c.Instance.TokenURI(opts, tokenIDint)
+	tokenIDBI := big.NewInt(TokenID)
+	TokenURI, err := c.Instance.TokenURI(opts, tokenIDBI)
 	return TokenURI, err
 }
 

@@ -49,14 +49,18 @@ type NonceMan struct {
 }
 
 func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
+
+	TC := tasks.NewTaskClient(redisAddr)
+	TC.QBurnTask()
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		//if concurrency is 0, the default would be # accessable CPU
 		asynq.Config{
-			Concurrency: 0,
+			Concurrency: 15,
 			Queues: map[string]int{
-				"transactions": 5,
+				"transactions": 3,
 				"validations":  5,
+				"burn":         2,
 			},
 		},
 	)

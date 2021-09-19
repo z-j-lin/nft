@@ -3,7 +3,7 @@ import ContentCard from '../Components/ItemCard';
 
 const HomePage = () => (
   <>
-    <ContentCard contentID="thing1"/>
+
   </>
 
 );

@@ -114,6 +114,8 @@ func (db *Database) DQpendingBlock() (Blocknum uint64) {
 	}
 	return
 }
+
+//adds item to store
 func (db *Database) AddItem(contentID string) error {
 	err := db.Client.SAdd(context.TODO(), "store", contentID).Err()
 	return err
@@ -128,19 +130,19 @@ func (db *Database) GetStore() ([]string, error) {
 }
 
 /*ran in a scheduled function once daily to get expired tokens*/
-func (db *Database) GetExpiredTokens(accountAddr, days2Live float64) []string {
+func (db *Database) GetExpiredTokens() ([]string, error) {
 	time1 := time.Now().AddDate(0, 0, -1).Unix()
 	time2 := time.Now().Unix()
 	opts := &redis.ZRangeBy{
 		Min: fmt.Sprint(time1),
 		Max: fmt.Sprint(time2),
 	}
-	val := db.Client.ZRangeByScore(context.Background(), "Collective", opts).Val()
-	return val
+	val, err := db.Client.ZRangeByScore(context.Background(), "Collective", opts).Result()
+	return val, err
 }
 
 //deletes tokens on the collective list
-func (db *Database) DeleteExpiredTokens(accountAddr, days2Live float64) error {
+func (db *Database) DeleteExpiredTokens() error {
 	time1 := time.Now().AddDate(0, 0, -1).Unix()
 	time2 := time.Now().Unix()
 	err := db.Client.ZRemRangeByScore(context.Background(), "Collective", fmt.Sprint(time1), fmt.Sprint(time2)).Err()
@@ -168,8 +170,7 @@ func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live int) e
 	TokenHashData := make(map[string]string)
 	TokenHashData["Owner"] = accountAddr
 	//create a tokenID map with tokenID as key, with fields resourceID, AccountOwners
-	//used for serving content ownership array to the client provided the tokenID array
-	//this is also used to verify access rights
+	//used for serving content ownership array to the client
 	err := db.Client.HSet(context.TODO(), tokenID, TokenHashData).Err()
 	if err != nil {
 		log.Printf("db: failed to create token hash: %v\n", err)
@@ -184,7 +185,8 @@ func (db *Database) StoreOwnership(accountAddr, tokenID string, days2Live int) e
 	}
 	//add token to collective token sorted set ranked by expiration date
 	days := days2Live
-	lifetime := time.Now().AddDate(0, 0, days)
+
+	lifetime := time.Now().Add(time.Duration(days * 1000000000))
 
 	element := &redis.Z{Score: float64(lifetime.Unix()), Member: tokenID}
 	//this is used to get the delete token array for burning tokens

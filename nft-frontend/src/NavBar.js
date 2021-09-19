@@ -19,15 +19,32 @@ class NavBar extends Component {
     setJwt(data.token);
   }
 */
-  buyHandler(){
-
-  }
+  
 
   logoutHandler(){
-
-  }
-  inventoryHandler(){
-
+    const options = {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      //credentials: 'include',
+      
+    };
+    console.log(options)
+    fetch(backendurl+'logout', options).then( response => {
+      console.log(response.headers)
+      //change isLoggedIn variable
+      return response.json() 
+    }).then(JsonResp => {
+      console.log(JsonResp)
+      if (JsonResp.Isloggedin === "1"){
+        this.props.func(this.state.web3, this.state.accounts)
+      }
+      //sets the state and rerenders all pages with navbar
+      this.setState({isLoggedIn: JsonResp.Isloggedin})
+    })
   }
 
   //function to login
@@ -103,12 +120,6 @@ class NavBar extends Component {
       case "logout":
         this.logoutHandler()
         break
-      case "buy":
-        this.buyHandler()
-        break
-      case "owned":
-        this.inventoryHandler()
-        break
       default:
     }
   }
@@ -119,18 +130,19 @@ class NavBar extends Component {
       nav =( 
       <Menu >
         <Menu.Item as={Link} 
-        to="/store"
+        to='/store'
         name='Store'
         active={activeItem === 'Store'}
         onClick={this.handleItemClick}
         >
         </Menu.Item>   
-        <Menu.Item
-          name='owned'
+        <Menu.Item as={Link}
+          to='/inventory'
+          name='Inventory'
           active={activeItem === 'messages'}
           onClick={this.handleItemClick}
-        />
-        <Link to="/store"/>
+        >
+        </Menu.Item>
         <Menu.Menu position='right'>
           <Menu.Item
             name='logout'
