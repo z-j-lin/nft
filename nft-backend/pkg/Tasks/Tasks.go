@@ -31,24 +31,21 @@ type BlockV struct {
 
 type TaskClient struct {
 	client *asynq.Client
-	nm     *NonceMan
 }
 
 func NewTaskClient(eth *blockchain.Ethereum, redisAddr string) *TaskClient {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
-	Nm := NewNonceManager(eth)
 	return &TaskClient{
 		client: client,
-		nm:     Nm,
 	}
 }
 
 // used in the api for token purchasing, creates a mint task
 //only makes 1 mint task at a time
-func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
+func (tc *TaskClient) QMintTask(accAddr, resourceID string, Nonce *big.Int) error {
 	//create the task
-	nonce := tc.nm.GetnonceWithLock()
-	task, err := tc.newMintTokenTask(accAddr, resourceID, nonce)
+
+	task, err := tc.newMintTokenTask(accAddr, resourceID, Nonce)
 	if err != nil {
 		log.Println("failed to create Mint task", err)
 		return err
@@ -82,7 +79,7 @@ func (tc *TaskClient) QBurnTask() error {
 		asynq.Timeout(10*time.Minute),
 		asynq.MaxRetry(3),
 		//run this every 24 hour
-		asynq.ProcessAt(time.Now().Add(time.Minute)),
+		asynq.ProcessAt(time.Now().Add(10*time.Minute)),
 	)
 	if err != nil {
 		log.Println("failed to queue burn task")

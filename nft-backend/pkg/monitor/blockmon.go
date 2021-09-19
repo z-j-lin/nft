@@ -24,7 +24,7 @@ type monitor struct {
 //I might make this a go routine that also call Startmon
 func NewBlockMon(ether *blockchain.Ethereum) *monitor {
 	redisAddr := "127.0.0.1:6379"
-	TC := tasks.NewTaskClient(redisAddr)
+	TC := tasks.NewTaskClient(ether, redisAddr)
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
 		log.Fatalf("failed to connect with redisdb: %v", err)
@@ -45,7 +45,7 @@ func (mon *monitor) Startmon() {
 	//initial block of contract
 	if err != nil || initState == nil {
 		log.Println("***starting new blockmon state***")
-		RootBlock := int64(11063008)
+		RootBlock := int64(11063784)
 		initState = &objects.State{
 			HighestProcessedBlock: RootBlock,
 			InSync:                false,
@@ -62,19 +62,19 @@ func (mon *monitor) Startmon() {
 
 //this function querys for a block every 5 seconds
 func (mon *monitor) monitorloop() error {
-	wait := 2 * time.Minute
+	wait := 5 * time.Second
 	for {
 		if !mon.state.InSync {
 			wait = 0 * time.Second
 		} else {
-			wait = 2 * time.Minute
+			wait = 5 * time.Second
 		}
 		select {
 		case killed := <-mon.Kill:
 			_ = killed
 			log.Println("recieved kill signal")
 			return nil
-		case ticker := <-time.After(wait * time.Second):
+		case ticker := <-time.After(wait):
 			_ = ticker
 			mon.getBlock()
 		}
@@ -87,7 +87,7 @@ func (mon *monitor) getBlock() {
 	if err != nil {
 		log.Fatalf("at monitorloop %v", err)
 	}
-	//Most recent block added to the block chain
+	//Most recent block added to the blockchain
 	latestBlock := header.Number.Int64()
 	//40 blocks below the most recent block
 	delayedLatestBlock := latestBlock - int64(40)
@@ -102,6 +102,7 @@ func (mon *monitor) getBlock() {
 		mon.taskClient.QVerificationTask(int64(currentBlock))
 		mon.state.HighestProcessedBlock = currentBlock
 		//update state on redis
+		log.Println("GetBlock: queueing Block#:", currentBlock)
 		err = mon.db.UpdateProcessedState(int64(currentBlock))
 		if err != nil {
 			log.Println("unable to update state", err)

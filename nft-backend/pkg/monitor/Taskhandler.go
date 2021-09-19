@@ -53,6 +53,7 @@ func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) erro
 	//run the worker
 	err = NewTX.Run()
 	//returns the status of the job
+	log.Println("MINTTASKHANDLER:", err)
 	return err
 }
 func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) error {
@@ -64,10 +65,11 @@ func (hdl *Handler) HandleVerificationTask(ctx context.Context, t *asynq.Task) e
 	}
 	//instantiates a new validator in a go routine started by the asynq server
 	err = NewValidator(hdl.eth, big.NewInt(Data.Blocknum))
+
 	return err
 }
 
-func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
+func (hdl *Handler) HandleBurnTokenTask(CTX context.Context, t *asynq.Task) error {
 	//gets the expired tokens from the db
 	tokens, err := hdl.db.GetExpiredTokens()
 	//container for tokenIDs
@@ -99,5 +101,6 @@ func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
 	}
 	//make another task to run later
 	err = hdl.TC.QBurnTask()
+	log.Println("BurnHDLER:", err)
 	return err
 }

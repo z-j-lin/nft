@@ -62,6 +62,7 @@ func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 	// matches the task type with the function to perform the task
 	mux.HandleFunc(tasks.TypeMintToken, hdl.HandleMintTokenTask)
 	mux.HandleFunc(tasks.TypeBlockVerfication, hdl.HandleVerificationTask)
+	mux.HandleFunc(tasks.TypeBurnTokens, hdl.HandleBurnTokenTask)
 	//mux.HandleFunc(tasks.TypeBurnTokens, hdl.HandleBurnTokenTask)
 	//starts the server and blocks until a OS signal to exit is sent to terminate
 	err := srv.Run(mux)
@@ -90,6 +91,7 @@ func (txw *TxWorker) Run() error {
 	//get the private key
 	privk, free, err := txw.pm.GetWithLock()
 	if err != nil {
+		log.Println("TXQmon: failed to get privatekey", err)
 		return err
 	}
 	//the key is freed after the transaction is mined
@@ -102,13 +104,15 @@ func (txw *TxWorker) Run() error {
 	// if failed to send transaction
 	if err != nil {
 		//return an error, key is freed, task will retry
-		return fmt.Errorf("failed to send transaction")
+		log.Println("failed to send transaction", err)
+		return fmt.Errorf("failed to send transaction %v", err)
 	}
 	receipt, err := txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
 	for receipt == nil && err == ErrTXFailedToRun {
 		receipt, err = txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
 		//if transaction failed to run on contract
 		if err != nil && err != ErrTXFailedToRun {
+			log.Println("TXQmon: error @ receipt", err)
 			return err
 		}
 		if receipt.Status == 1 {

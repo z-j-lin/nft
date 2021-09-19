@@ -21,12 +21,13 @@ import (
 )
 
 var (
-	key     = []byte("super-secret-key")
-	store   = sessions.NewCookieStore(key)
-	chainID = big.NewInt(int64(5444))
-	eth     *blockchain.Ethereum
-	db      *redisDb.Database
-	TC      *tasks.TaskClient
+	key      = []byte("super-secret-key")
+	store    = sessions.NewCookieStore(key)
+	chainID  = big.NewInt(int64(5444))
+	eth      *blockchain.Ethereum
+	db       *redisDb.Database
+	TC       *tasks.TaskClient
+	NonceMan *tasks.NonceMan
 )
 
 //connection variables(should be in a config file)
@@ -43,8 +44,8 @@ type loginRes struct {
 
 //struct to hold information about each token
 type TokenRegistry struct {
-	resourceID string `json: "resourceid"`
-	Account    string `json: "account"`
+	Account    string `json:"account"`
+	ResourceID string `json:"resourceid"`
 }
 
 func ContentStore(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +109,9 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//add transaction to the queue
-		err = TC.QMintTask(buy.Account, buy.resourceID)
+		nonce := NonceMan.GetnonceWithLock()
+		err = TC.QMintTask(buy.Account, buy.ResourceID, nonce)
+		log.Printf("RESTAPI: Mint Transaction task queued. Account: %s, ResourceID: %s, Nonce: %d", buy.Account, buy.ResourceID, nonce)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("500 - Something bad happened!"))
@@ -119,8 +122,8 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 }
 
 type contentReq struct {
-	Account string `json: "account"`
-	TokenID string `json: "tokenid"`
+	Account string `json:"account"`
+	TokenID string `json:"tokenid"`
 }
 
 //on request send back access tokens to user
@@ -228,8 +231,8 @@ func logout(w http.ResponseWriter, r *http.Request) {
 
 type loginReq struct {
 	//indicator to see if the account is logged in
-	Signature string `json: "signature"`
-	Account   string `json: "account"`
+	Signature string `json:"signature"`
+	Account   string `json:"account"`
 }
 
 //handler for login
@@ -339,6 +342,7 @@ func main() {
 	eth = ethC
 	eth.Contract = blockchain.NewContract(eth, contractAddress)
 	TC = tasks.NewTaskClient(eth, redisAddr)
+	NonceMan = tasks.NewNonceManager(eth)
 	flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {

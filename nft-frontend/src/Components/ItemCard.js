@@ -6,6 +6,7 @@ class ContentCard extends Component{
   constructor(props) {
     super(props);
     this.state = {
+      contentID: props.contentID,
       account: props.accounts,
       isToggleOn: true,
       web3: props.web3
@@ -16,7 +17,7 @@ class ContentCard extends Component{
   buyToken(){
     console.log(this.state.account.toString())
     const backendurl = 'http://127.0.0.1:8081/';
-    const data = {"resourceid": this.props.contentID, "account": this.state.account.toString()}
+    const data = {"resourceid": this.state.contentID, "account": this.state.account.toString()}
     console.log(data)
     const options = {
       method: 'POST',
