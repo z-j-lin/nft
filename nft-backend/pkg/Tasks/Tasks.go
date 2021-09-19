@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/z-j-lin/nft/tree/main/nft-backend/pkg/blockchain"
 )
 
 const (
@@ -18,7 +20,7 @@ const (
 type MintToken struct {
 	AccountAddress string
 	ResourceID     string
-	Nonce          uint64
+	Nonce          *big.Int
 }
 type BurnToken struct {
 	TokenIDs []*big.Int
@@ -29,13 +31,15 @@ type BlockV struct {
 
 type TaskClient struct {
 	client *asynq.Client
+	nm     *NonceMan
 }
 
-func NewTaskClient(redisAddr string) *TaskClient {
+func NewTaskClient(eth *blockchain.Ethereum, redisAddr string) *TaskClient {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
-
+	Nm := NewNonceManager(eth)
 	return &TaskClient{
 		client: client,
+		nm:     Nm,
 	}
 }
 
@@ -43,7 +47,8 @@ func NewTaskClient(redisAddr string) *TaskClient {
 //only makes 1 mint task at a time
 func (tc *TaskClient) QMintTask(accAddr, resourceID string) error {
 	//create the task
-	task, err := tc.newMintTokenTask(accAddr, resourceID)
+	nonce := tc.nm.GetnonceWithLock()
+	task, err := tc.newMintTokenTask(accAddr, resourceID, nonce)
 	if err != nil {
 		log.Println("failed to create Mint task", err)
 		return err
@@ -112,8 +117,8 @@ func (tc *TaskClient) QVerificationTask(blocknum int64) error {
 	return nil
 }
 
-func (tc *TaskClient) newMintTokenTask(AccAddr, resourceID string) (*asynq.Task, error) {
-	Data, err := json.Marshal(MintToken{AccountAddress: AccAddr, ResourceID: resourceID})
+func (tc *TaskClient) newMintTokenTask(AccAddr, resourceID string, nonce *big.Int) (*asynq.Task, error) {
+	Data, err := json.Marshal(MintToken{AccountAddress: AccAddr, ResourceID: resourceID, Nonce: nonce})
 	if err != nil {
 		return nil, err
 	}
@@ -136,4 +141,28 @@ func (tc *TaskClient) newBlockVerificationTask(blocknum int64) (*asynq.Task, err
 	}
 	log.Printf(" [*] Successfully created a verification task")
 	return asynq.NewTask(TypeBlockVerfication, Data), nil
+}
+
+type NonceMan struct {
+	sync.Mutex
+	nonce *big.Int
+}
+
+func NewNonceManager(eth *blockchain.Ethereum) *NonceMan {
+	//get next nonce from contract
+	nonce, err := eth.Contract.GetInitNonce()
+	log.Println("TXQmon: started new nonce manager with nonce", nonce)
+	if err != nil {
+		log.Panic(err)
+	}
+	return &NonceMan{
+		nonce: nonce,
+	}
+}
+func (nm *NonceMan) GetnonceWithLock() *big.Int {
+	nm.Lock()
+	defer nm.Unlock()
+	nonce := nm.nonce
+	nm.nonce = nonce.Add(nonce, big.NewInt(1))
+	return nonce
 }

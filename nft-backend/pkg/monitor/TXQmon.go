@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -43,14 +42,9 @@ func NewQmon(redisAddr string, numWorkers int, eth *blockchain.Ethereum, db *red
 	NewServerClient(redisAddr, numWorkers, hdl)
 }
 
-type NonceMan struct {
-	sync.Mutex
-	nonce int64
-}
-
 func NewServerClient(redisAddr string, numWorkers int, hdl *Handler) {
 
-	TC := tasks.NewTaskClient(redisAddr)
+	TC := tasks.NewTaskClient(hdl.eth, redisAddr)
 	TC.QBurnTask()
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
@@ -115,17 +109,13 @@ func (txw *TxWorker) Run() error {
 		receipt, err = txw.eth.Client.TransactionReceipt(context.TODO(), tx.Hash())
 		//if transaction failed to run on contract
 		if err != nil && err != ErrTXFailedToRun {
-
 			return err
 		}
 		if receipt.Status == 1 {
 			return nil
-		} else {
-			return fmt.Errorf("transaction failed")
 		}
-
 	}
-	return fmt.Errorf("transaction failed")
+	return nil
 }
 
 // given the private key returns a keyed transactor

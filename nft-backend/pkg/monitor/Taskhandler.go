@@ -22,20 +22,17 @@ type Handler struct {
 	PrivkManager *PrivkManager
 	eth          *blockchain.Ethereum
 	db           *redisDb.Database
-	nm           *NonceMan
 	TC           *tasks.TaskClient
 }
 
 //runs as a go routine within the server
 //creates a new minttx and txworker object
 func NewTaskHandler(PM *PrivkManager, eth *blockchain.Ethereum, db *redisDb.Database) *Handler {
-	tc := tasks.NewTaskClient(db.Client.Options().Addr)
-	nm := NewNonceManager(eth)
+	tc := tasks.NewTaskClient(eth, db.Client.Options().Addr)
 	hdl := &Handler{
 		PrivkManager: PM,
 		eth:          eth,
 		db:           db,
-		nm:           nm,
 		TC:           tc,
 	}
 	return hdl
@@ -49,9 +46,8 @@ func (hdl *Handler) HandleMintTokenTask(ctx context.Context, t *asynq.Task) erro
 		return err
 	}
 	//get mint transaction nonce
-	tnonce := hdl.nm.GetnonceWithLock()
 	//interface object for sending the mint transaction
-	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, big.NewInt(tnonce), hdl.eth, hdl.db)
+	send := blockchain.NewMintTransaction(data.AccountAddress, data.ResourceID, data.Nonce, hdl.eth, hdl.db)
 	//start a new txworker, with the minttx object
 	NewTX := NewTXWorker(hdl.PrivkManager, hdl.eth, send)
 	//run the worker
@@ -104,23 +100,4 @@ func (hdl *Handler) HandleBurnTokenTask(t *asynq.Task) error {
 	//make another task to run later
 	err = hdl.TC.QBurnTask()
 	return err
-}
-
-func NewNonceManager(eth *blockchain.Ethereum) *NonceMan {
-	//get next nonce from contract
-	nonce, err := eth.Contract.GetInitNonce()
-	log.Println("TXQmon: started new nonce manager with nonce", nonce)
-	if err != nil {
-		log.Panic(err)
-	}
-	return &NonceMan{
-		nonce: nonce.Int64(),
-	}
-}
-func (nm *NonceMan) GetnonceWithLock() int64 {
-	nm.Lock()
-	defer nm.Unlock()
-	nonce := nm.nonce
-	nm.nonce = nonce + 1
-	return nonce
 }

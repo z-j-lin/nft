@@ -26,6 +26,7 @@ var (
 	chainID = big.NewInt(int64(5444))
 	eth     *blockchain.Ethereum
 	db      *redisDb.Database
+	TC      *tasks.TaskClient
 )
 
 //connection variables(should be in a config file)
@@ -105,7 +106,6 @@ func BuyToken(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("500 - Something bad happened!"))
 			return
 		}
-		TC := tasks.NewTaskClient(redisAddr)
 
 		//add transaction to the queue
 		err = TC.QMintTask(buy.Account, buy.resourceID)
@@ -330,12 +330,15 @@ func fetchResource(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func main() {
+
 	var dir string
 	ethC, err := blockchain.NewKeylessEthClient(rpcurl, contractAddress, chainID)
 	if err != nil {
 		panic(err)
 	}
 	eth = ethC
+	eth.Contract = blockchain.NewContract(eth, contractAddress)
+	TC = tasks.NewTaskClient(eth, redisAddr)
 	flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
 	rdb, err := redisDb.NewDBinstance()
 	if err != nil {
